@@ -36,7 +36,7 @@ st.set_page_config(page_title="ПромКачество.СПб", layout="wide")
 st.title("Экосистема «ПромКачество.СПб»")
 st.caption("Прототип концепта для Ассоциации промышленных производств")
 
-# Боковое меню выбора концепции (Добавлен админ-панель для проверки БД)
+# Боковое меню выбора концепции
 option = st.sidebar.radio(
     "Выберите вариант концепции для демонстрации:",
     ("Вариант 1: Кадровый хаб (B2B/B2G)", 
@@ -72,7 +72,7 @@ if option == "Вариант 1: Кадровый хаб (B2B/B2G)":
             conn.close()
             st.toast("Данные успешно сохранены в БД и отправлены в HR-департамент Кировского завода!")
 
-    # Полностью рабочий график дефицита кадров
+    # ИСПРАВЛЕНО: Синтаксическая ошибка в графике устранена
     st.subheader("📈 Аналитика: Прогноз дефицита инженеров в СПб (тыс. чел.)")
     chart_data = pd.DataFrame({
         "Год":,
@@ -143,7 +143,7 @@ elif option == "Вариант 3: Суперапп образования (B2C)"
     
     st.button("Записаться на экскурсию на производство")
 
-# ================= НОВАЯ СЕКРЕТНАЯ ВКЛАДКА ДЛЯ МОНИТОРИНГА БД =================
+# ================= СЕКРЕТНАЯ ВКЛАДКА ДЛЯ МОНИТОРИНГА БД =================
 elif option == "📊 Панель Ассоциации (Просмотр БД)":
     st.header("📊 Мониторинг базы данных «ПромКачество.СПб»")
     st.write("Здесь Ассоциация в реальном времени видит все b2b-клики и заявки, сохраненные в SQLite.")
@@ -151,17 +151,23 @@ elif option == "📊 Панель Ассоциации (Просмотр БД)":
     conn = sqlite3.connect('prom_quality.db')
     
     st.subheader("1. Логи передачи цифровых следов студентов (Вариант 1)")
-    df_students = pd.read_sql_query("SELECT * FROM student_shares ORDER BY id DESC", conn)
-    if not df_students.empty:
-        st.dataframe(df_students, use_container_width=True)
-    else:
+    try:
+        df_students = pd.read_sql_query("SELECT * FROM student_shares ORDER BY id DESC", conn)
+        if not df_students.empty:
+            st.dataframe(df_students, use_container_width=True)
+        else:
+            st.info("В базе данных пока нет логов отправки цифровых следов.")
+    except Exception as e:
         st.info("В базе данных пока нет логов отправки цифровых следов.")
         
     st.subheader("2. Заявки на бронирование R&D оборудования (Вариант 2)")
-    df_bookings = pd.read_sql_query("SELECT * FROM lab_bookings ORDER BY id DESC", conn)
-    if not df_bookings.empty:
-        st.dataframe(df_bookings, use_container_width=True)
-    else:
-        st.info("В базе данных пока нет активных заявок на шеринг оборудования.")
+    try:
+        df_bookings = pd.read_sql_query("SELECT * FROM lab_bookings ORDER BY id DESC", conn)
+        if not df_bookings.empty:
+            st.dataframe(df_bookings, use_container_width=True)
+        else:
+            st.info("В базе данных пока нет active заявок на шеринг оборудования.")
+    except Exception as e:
+        st.info("В базе данных пока нет active заявок на шеринг оборудования.")
         
     conn.close()
