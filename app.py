@@ -110,7 +110,7 @@ elif option == "Вариант 2: Шеринг-экономика & R&D (Арб�
             if not company.strip():
                 st.error("Ошибка: Введите название предприятия для формирования SLA-контракта.")
             else:
-                st.st.session_state.bookings_history.append({
+                st.session_state.bookings_history.append({
                     "Предприятие-заказчик": company,
                     "Научный центр": selected_lab,
                     "Испытательные часы": hours,
