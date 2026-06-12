@@ -239,7 +239,12 @@ elif option == "📊 Панель Ассоциации (Оперативный �
         df_leads = pd.DataFrame(st.session_state.parent_leads)
         st.dataframe(df_leads, use_container_width=True)
         
-        csv_leads = df_leads.to_csv(index=False).encode('utf-8')
-        st.download_button(label="📥 Скачать базу b2c-заявок родителей в CSV", data=csv_leads, file_name="parent_leads.csv", mime="text/csv", use_container_width=True)
-    else:
-        st.info("В текущей сессии заявок от родителей еще не поступало. Заполните форму записи в Варианте 3!")
+                # ИСПРАВЛЕННЫЙ ЭКСПОРТ ДЛЯ РУССКОГО EXCEL (БЕЗ ИЕРОГЛИФОВ)
+        csv_leads = df_leads.to_csv(index=False, sep=';', encoding='utf-8-sig')
+        st.download_button(
+            label="📥 Скачать базу b2c-заявок родителей для MS Excel", 
+            data=csv_leads, 
+            file_name="parent_leads_report.csv", 
+            mime="text/csv", 
+            use_container_width=True
+        )
