@@ -124,8 +124,12 @@ elif option == "Вариант 2: Шеринг-экономика & R&D (Арб�
 # ================= ВАРИАНТ 3: СУПЕРАПП ОБРАЗОВАНИЯ =================
 elif option == "Вариант 3: Финтех-Navigator образования (Экосистема Сбера)":
     st.header("🎒 Концепт: Пошаговый конфигуратор промышленного обучения ребенка")
-    st.write("Сконструируйте бесшовную траекторию обучения: выберите вуз и будущий завод-работодатель.")
+    st.write("Сконструируйте бесшовную траекторию обучения, проложите маршрут практики и подайте заявку на целевой грант.")
     
+    # Инициализация списка лидов родителей в сессии, если его еще нет
+    if "parent_leads" not in st.session_state:
+        st.session_state.parent_leads = []
+
     # Справочники вузов и заводов с координатами
     vuz_pool = {
         "СПбПУ (Политех)": {"cost": 420000, "lat": 59.9994, "lon": 30.3744, "spec": "АСУ ТП и Системный инжиниринг"},
@@ -169,9 +173,9 @@ elif option == "Вариант 3: Финтех-Navigator образования 
         
     st.info(f"🔥 ИТОГО к оплате родителю: {parent_pays} РУБЛЕЙ! Обучение полностью софинансируется городом и заводом.")
 
-    # Живая карта - Показывает только выбранную пару (Вуз + Завод)
-    st.subheader("📍 Логистика трека на карте Санкт-Петербурга")
-    st.write(f"На карте отображен маршрут обучения и практики вашего ребенка: **{chosen_vuz}** ➡️ **{chosen_factory}**")
+    # Логистика трека на карте Санкт-Петербурга с прорисовкой линии маршрута
+    st.subheader("📍 Интерактивный b2b-маршрут практики на карте")
+    st.write(f"Маршрут связывает локацию обучения (**{chosen_vuz}**) и производственную площадку (**{chosen_factory}**).")
     
     map_df = pd.DataFrame({
         'lat': [vuz_pool[chosen_vuz]["lat"], factory_pool[chosen_factory]["lat"]],
@@ -179,28 +183,62 @@ elif option == "Вариант 3: Финтех-Navigator образования 
     })
     st.map(map_df)
 
+    # ИНТЕРАКТИВНАЯ ФОРМА ЗАПИСИ ДЛЯ РОДИТЕЛЕЙ (РЕШЕНИЕ ПРОБЛЕМЫ "РЕКЛАМКИ")
     st.write("---")
-    if st.button("Сформировать и подписать сквозной целевой контракт", use_container_width=True):
-        st.success("📝 Электронный документ успешно сформирован и подписан ЭЦП сторон!")
-        st.markdown(f"**Будущий работодатель:** {chosen_factory} | **Программа:** {vuz_pool[chosen_vuz]['spec']} | **Доля родителя:** 0%")
+    st.subheader("📝 Направление электронной заявки на целевое обучение")
+    st.write("Заполните форму ниже, чтобы зафиксировать цифровой след вашего ребенка в реестре Ассоциации.")
+    
+    with st.form("parent_enrollment_form"):
+        col_form1, col_form2 = st.columns(2)
+        with col_form1:
+            parent_fio = st.text_input("ФИО Родителя / Законного представителя:", placeholder="Например: Петров Георгий Николаевич")
+            parent_phone = st.text_input("Контактный телефон для связи:", placeholder="+7 (999) 000-00-00")
+        with col_form2:
+            child_fio = st.text_input("ФИО Студента / Абитуриента:", placeholder="Например: Петров Александр Георгиевич")
+            child_class = st.selectbox("Текущий статус обучения ребенка:", ["Выпускной класс школы (11 класс)", "Студент 1-2 курса колледжа", "Абитуриент вуза"])
+            
+        submit_lead = st.form_submit_button("Подать заявку и подписать согласие на целевой трек", use_container_width=True)
+        
+        if submit_lead:
+            if not parent_fio.strip() or not parent_phone.strip() or not child_fio.strip():
+                st.error("Ошибка: Пожалуйста, заполните все обязательные поля формы для отправки заявки.")
+            else:
+                # Физически записываем лид в память сессии
+                st.session_state.parent_leads.append({
+                    "Дата/Время": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "Родитель": parent_fio,
+                    "Телефон": parent_phone,
+                    "Ребенок": child_fio,
+                    "Статус": child_class,
+                    "Выбранный ВУЗ": chosen_vuz,
+                    "Выбранный Завод": chosen_factory
+                })
+                st.success(f"Уважаемый {parent_fio}! Заявка на целевой трек в {chosen_vuz} под b2b-заказ {chosen_factory} успешно сформирована. Цифровой след сохранен.")
 
 # ================= ОПЕРАТИВНАЯ ПАНЕЛЬ СЕССИИ ДЛЯ АССОЦИАЦИИ =================
 elif option == "📊 Панель Ассоциации (Оперативный аудит)":
-    st.header("📊 Оперативный b2b-мониторинг экосистемы")
-    st.write("Сквозной аудит транзакций, кадровых логов и исполнения SLA внутри текущей сессии показа.")
+    st.header("📊 Оперативный b2b/b2c-мониторинг экосистемы")
+    st.write("Сквозной аудит транзакций, кадровых логов и входящих заявок от пользователей в реальном времени.")
     
-    st.subheader("1. Активные кадровые мэтчинги (Яндекс-Лог)")
+    st.subheader("1. Активные кадровые мэтчинги студентов (Вариант 1 — Яндекс)")
     if st.session_state.matches_history:
         st.dataframe(pd.DataFrame(st.session_state.matches_history), use_container_width=True)
     else:
-        st.info("В текущей сессии еще не было кликов. Сделайте тестовый клик в Варианте 1!")
+        st.info("В текущей сессии еще не было кликов по студентам.")
         
-    st.subheader("2. Сформированные b2b-контракты шеринга (Авито-Арбитраж)")
+    st.subheader("2. Сформированные b2b-контракты шеринга оборудования (Вариант 2 — Авито)")
     if st.session_state.bookings_history:
-        df_b = pd.DataFrame(st.session_state.bookings_history)
-        st.dataframe(df_b, use_container_width=True)
-        csv = df_b.to_csv(index=False).encode('utf-8')
-        st.download_button(label="📥 Скачать оперативный b2b-реестр контрактов в CSV", data=csv, file_name="session_report.csv", mime="text/csv", use_container_width=True)
+        st.dataframe(pd.DataFrame(st.session_state.bookings_history), use_container_width=True)
     else:
-        st.info("В текущей сессии еще не оформлялись b2b-контракты. Заполните форму в Варианте 2!")
-
+        st.info("В текущей сессии еще не оформлялись b2b-контракты лабораторий.")
+        
+    # НОВАЯ ТАБЛИЦА ЛИДОВ ОТ РОДИТЕЛЕЙ (СБЕР)
+    st.subheader("3. Заявки от родителей на софинансирование обучения (Вариант 3 — Сбер Лиды)")
+    if "parent_leads" in st.session_state and st.session_state.parent_leads:
+        df_leads = pd.DataFrame(st.session_state.parent_leads)
+        st.dataframe(df_leads, use_container_width=True)
+        
+        csv_leads = df_leads.to_csv(index=False).encode('utf-8')
+        st.download_button(label="📥 Скачать базу b2c-заявок родителей в CSV", data=csv_leads, file_name="parent_leads.csv", mime="text/csv", use_container_width=True)
+    else:
+        st.info("В текущей сессии заявок от родителей еще не поступало. Заполните форму записи в Варианте 3!")
