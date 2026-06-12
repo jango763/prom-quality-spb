@@ -109,7 +109,7 @@ if option == "Вариант 1: Кадровый хаб (Mэтчинг Янде�
         st.markdown(f"""
             <div class="sber-card">
                 <div class="badge-sber">✓ QA Verified Profile</div>
-                <div class="sber-title">{selected_student.split(' (')[0]}</div>
+                <div class="sber-title">{selected_student}</div>
                 <p><b>Вуз:</b> {student_data['vuz']}</p>
                 <p><b>Направление:</b> {student_data['spec']}</p>
                 <p><b>Рейтинг компетенций Ассоциации:</b> ⭐️ {student_data['qa']} / 5.0</p>
