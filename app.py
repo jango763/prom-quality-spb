@@ -205,7 +205,8 @@ elif option == "Вариант 3: Финтех-Navigator образования 
             else:
                 # Физически записываем лид в память сессии
                 st.session_state.parent_leads.append({
-                    "Дата/Время": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                        "Статус заявки": "Новая (В обработке)",
+
                     "Родитель": parent_fio,
                     "Телефон": parent_phone,
                     "Ребенок": child_fio,
