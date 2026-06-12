@@ -2,71 +2,10 @@ import streamlit as st
 import pandas as pd
 
 # Настройка страницы в строгом стиле B2B
-st.set_page_config(page_title="Экосистема ПромКачество.СПб", layout="wide", page_icon="🏭")
-
-# Сберовские CSS-инъекции: изумрудный зеленый, мягкие b2b-тени, неоновые метрики
-st.markdown("""
-    <style>
-    /* Главный контейнер карточек */
-    .sber-card {
-        background-color: #ffffff;
-        padding: 24px;
-        border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(0, 135, 90, 0.08);
-        border-left: 6px solid #00875a;
-        margin-bottom: 20px;
-    }
-    .sber-title {
-        color: #00875a;
-        font-size: 22px;
-        font-weight: 700;
-        margin-bottom: 12px;
-    }
-    /* Бейджи верификации */
-    .badge-sber {
-        background-color: #e6f4ea;
-        color: #00875a;
-        padding: 6px 14px;
-        border-radius: 30px;
-        font-size: 13px;
-        font-weight: 600;
-        display: inline-block;
-        margin-bottom: 10px;
-    }
-    /* Финтех-блок 0 рублей */
-    .sber-metric-box {
-        background: linear-gradient(135deg, #00875a 0%, #005e3e 100%);
-        color: #ffffff;
-        padding: 24px;
-        border-radius: 16px;
-        text-align: center;
-        box-shadow: 0 8px 24px rgba(0, 135, 90, 0.2);
-    }
-    .sber-metric-val {
-        font-size: 42px;
-        font-weight: 800;
-        color: #22c55e;
-        margin: 10px 0;
-        text-shadow: 0 2px 10px rgba(34, 197, 94, 0.3);
-    }
-    /* Витрина объявлений Авито/Сбер */
-    .showcase-item {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 12px;
-    }
-    .showcase-price {
-        color: #00875a;
-        font-weight: 700;
-        font-size: 16px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+st.set_page_config(page_title="ПромКачество.СПб", layout="wide", page_icon="🏭")
 
 st.title("Экосистема «ПромКачество.СПб»")
-st.caption("Цифровая b2b/b2c-платформа Ассоциации промышленных производств | Powered by Sber Design OS")
+st.caption("Флагманский b2b/b2c-прототип платформы для Ассоциации промышленных производств")
 
 # Боковое меню выбора концепции
 option = st.sidebar.radio(
@@ -95,7 +34,7 @@ if option == "Вариант 1: Кадровый хаб (Mэтчинг Янде�
         "Сидоров Константин Михайлович (СПбГЭТУ 'ЛЭТИ')": {
             "spec": "Проектирование микроэлектроники", "qa": 4.6, 
             "skills": "Проектирование печатных плат (Altium Designer), VHDL/Verilog, Работа в чистых помещениях",
-            "vuz": "СПбГЭТУ 'ЛЭТИ'"
+            "vuz": "Санкт-Петербургский государственный электротехнический университет 'ЛЭТИ'"
         }
     }
     
@@ -105,16 +44,8 @@ if option == "Вариант 1: Кадровый хаб (Mэтчинг Янде�
         selected_student = st.selectbox("Выберите верифицированного выпускника:", list(students_db.keys()))
         student_data = students_db[selected_student]
         
-        # Сберовская b2b-карточка студента
-        st.markdown(f"""
-            <div class="sber-card">
-                <div class="badge-sber">✓ QA Verified Profile</div>
-                <div class="sber-title">{selected_student}</div>
-                <p><b>Вуз:</b> {student_data['vuz']}</p>
-                <p><b>Направление:</b> {student_data['spec']}</p>
-                <p><b>Рейтинг компетенций Ассоциации:</b> ⭐️ {student_data['qa']} / 5.0</p>
-            </div>
-        """, unsafe_allow_html=True)
+        # Замена HTML на стандартные компоненты Streamlit
+        st.info(f"**Выпускник:** {selected_student}\n\n**Вуз:** {student_data['vuz']}\n\n**Направление:** {student_data['spec']}\n\n**Рейтинг QA:** ⭐️ {student_data['qa']} / 5.0")
         st.success(f"**Подтвержденные hard-skills:** {student_data['skills']}")
     
     with col2:
@@ -135,7 +66,7 @@ if option == "Вариант 1: Кадровый хаб (Mэтчинг Янде�
         if st.button("Инициировать бесшовный мэтчинг кадров", use_container_width=True):
             st.toast(f"Цифровой след успешно направлен в HR-департамент компании {factory}!")
 
-# ================= ВАРИАНТ 2: ШЕРИНГ-ЭКОНОМИКА (R&D) =================
+# ================= ВАРИАНТ 2: ШЕРИНГ-ЭКОНОМИКА =================
 elif option == "Вариант 2: Шеринг-экономика & R&D (Арбитраж Авито)":
     st.header("🔬 Концепт: Шеринг свободных мощностей и оборудования НИИ")
     st.write("Промышленный маркетплейс оборудования с автоматическим расчетом SLA и стоимости контракта.")
@@ -154,15 +85,7 @@ elif option == "Вариант 2: Шеринг-экономика & R&D (Арб�
         selected_lab = st.selectbox("Выберите научно-техническую базу для проведения испытаний:", list(labs_pool.keys()))
         lab_info = labs_pool[selected_lab]
         
-        # Сберовская b2b-карточка лаборатории
-        st.markdown(f"""
-            <div class="sber-card">
-                <div class="sber-title">{selected_lab}</div>
-                <p><b>Спецификация:</b> {lab_info['desc']}</p>
-                <p class="showcase-price">Базовый тариф: {lab_info['price']:,} руб/час</p>
-                <p><b>Надежность по SLA:</b> {lab_info['sla']}% своевременного выполнения</p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.info(f"**Лаборатория:** {selected_lab}\n\n**Спецификация:** {lab_info['desc']}\n\n**Базовый тариф:** {lab_info['price']:,} руб/час\n\n**Надежность по SLA:** {lab_info['sla']}%")
         
         st.write("---")
         st.subheader("📝 Расчет b2b-сделки")
@@ -170,18 +93,18 @@ elif option == "Вариант 2: Шеринг-экономика & R&D (Арб�
         hours = st.number_input("Количество испытательных часов:", min_value=1, max_value=150, value=10)
         
         total_cost = int(hours * lab_info['price'])
-        st.markdown(f"### Итоговая стоимость SLA-контракта: <span style='color:#00875a;'>{total_cost:,} руб.</span>", unsafe_allow_html=True)
+        st.write(f"### Итоговая стоимость SLA-контракта: {total_cost:,} руб.")
         
         if st.button("Забронировать тайм-слот оборудования", use_container_width=True):
             if not company.strip():
                 st.error("Ошибка: Введите название предприятия для автоматической генерации контракта.")
             else:
-                st.success(f"Контракт сформирован! Слот в {selected_lab} забронирован на {hours} ч. Сумма контракта: {total_cost:,} руб.")
+                st.success(f"Контракт сформирован! Слот забронирован на {hours} ч. Сумма контракта: {total_cost:,} руб.")
             
     with tab2:
         st.warning("⚠️ Дисциплина выполнения контрактов: НИИ 'Вектор' сорвал регламентные сроки выдачи отчетов по ТЗ для АО 'Завод Арсенал'. Платформа автоматически заблокировала b2b-транзакцию на расчетный счет НИИ до завершения технического аудита. Текущий рейтинг SLA исполнителя снижен на 0.2 балла.")
 
-# ================= ВАРИАНТ 3: СУПЕРАПП ОБРАЗОВАНИЯ (СБЕР) =================
+# ================= ВАРИАНТ 3: СУПЕРАПП ОБРАЗОВАНИЯ =================
 elif option == "Вариант 3: Финтех-Navigator образования (Экосистема Сбера)":
     st.header("🎒 Концепт: Финтех-трекер и субсидирование промышленного обучения")
     st.write("Сквозное планирование траектории инженера с расчетом финансовой модели и целевых b2b-грантов.")
@@ -201,8 +124,15 @@ elif option == "Вариант 3: Финтех-Navigator образования 
     with col_f3:
         st.metric(label="Целевой грант завода (ОДК-Климов)", value=f"- {int(base_cost*0.6):,} руб.", delta="60% покрытия")
         
-    # Премиальный Сберовский блок метрики
-    st.markdown("""
-        <div class="sber-metric-box">
-            <div style="font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Итоговая стоимость для родителя / студента:</div>
-            <div class="sber-metric-val">0 РУБЛЕЙ</div>
+    st.success("🔥 Итоговая стоимость для родителя / студента: 0 РУБЛЕЙ! Обучение на 100% софинансируется экосистемой промышленности и субсидиями города.")
+
+    st.subheader("📍 Интерактивная карта инфраструктуры «ПромКачество.СПб»")
+    
+    map_df = pd.DataFrame({
+        'lat': [59.8824, 59.8315, 59.9711, 59.8967, 59.9994, 59.9572, 59.9722, 59.9284],
+        'lon': [30.2521, 30.3421, 30.3722, 30.3544, 30.3744, 30.3081, 30.3211, 30.3204]
+    })
+    
+    st.map(map_df)
+    st.write("*Обозначения на карте: Индустриальные гиганты (Кировский завод, ОДК-Климов, Арсенал, Силовые машины) и ведущие технические вузы (Политех, ИТМО, ЛЭТИ, ГУАП).*")
+    st.button("Подписать сквозной целевой контракт электронной подписью", use_container_width=True)
