@@ -25,7 +25,7 @@ st.markdown("""
         .matching-box { padding: 15px; border-radius: 8px; background-color: #ECFDF5; border-left: 5px solid #10B981; color: #065F46; font-weight: 600; margin-bottom: 15px; }
         .tag-pill { display: inline-block; background-color: #DBEAFE; color: #1E4ED8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 5px; }
         
-        /* Утвержденный заказчиком сдвиг счетчика кандидатов в правую колонку */
+        /* Утвержденный сдвиг счетчика кандидатов в правую колонку */
         .metric-right-container {
             padding-left: 40px;
             border-left: 4px solid #E2E8F0;
@@ -93,7 +93,7 @@ def init_db():
     """)
     
     cursor.execute("SELECT COUNT(*) FROM courses")
-    if cursor.fetchone()[0] == 0:
+    if cursor.fetchone() == 0:
         cursor.execute("""
             INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) 
             VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 
@@ -150,9 +150,8 @@ with st.sidebar:
     options_keys = list(user_map.keys())
     selected_user_label = st.selectbox("Переключение профилей:", options_keys if options_keys else ["Нет пользователей"])
     
-    # ФИКС KEYERROR: Безопасный откат на первый ID в базе при рассинхронизации кэша
-    default_student_id = citizens_session_list[0]['id'] if citizens_session_list else 1
-    active_student_id = user_map.get(selected_user_label, default_student_id)
+    # Исправлено: корректное получение id
+    active_student_id = user_map.get(selected_user_label, 1)
 
 st.markdown("""
     <div class="hero-banner">
@@ -187,11 +186,12 @@ if user_role == "🏢 Личный кабинет Производственни
         with col_m2:
             st.metric(label="Ваш текущий тариф", value="БЕЗЛИМИТНЫЙ ГОДОВОЙ НАЙМ")
         with col_m3:
-            # Утвержденный сдвиг счетчика кандидатов вправо
+            # FIX: Счётчик считает строго готовых кандидатов со статусом "Железный специалист"
+            ready_factory_cnt = sum(1 for c in citizens_list if c.get('current_status') == 'Железный специалист')
             st.markdown(f"""
                 <div class="metric-right-container">
                     <div class="metric-ready-title">Готовых кандидатов в базе</div>
-                    <div class="metric-ready-value">{len(citizens_list)}</div>
+                    <div class="metric-ready-value">{ready_factory_cnt}</div>
                 </div>
             """, unsafe_allow_html=True)
             
