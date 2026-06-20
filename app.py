@@ -28,7 +28,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite в режиме WAL с авто-очисткой структуры)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite в режиме WAL с исправленным синтаксисом)
 # ==============================================================================
 DB_NAME = "production_control.db"
 
@@ -43,11 +43,11 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute("PRAGMA journal_mode=WAL;")
     
-    # ПРИНУДИТЕЛЬНЫЙ СБРОС СТАРЫХ НЕСТАБИЛЬНЫХ ТАБЛИЦ ДЛЯ УСТРАНЕНИЯ OPERATIONALERROR
+    # Принудительный сброс старых конфликтных таблиц
     cursor.execute("DROP TABLE IF EXISTS courses;")
     cursor.execute("DROP TABLE IF EXISTS citizens;")
     
-    # Создание чистой актуальной схемы курсов ДПО
+    # Создание схемы курсов ДПО
     cursor.execute("""
         CREATE TABLE courses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +64,7 @@ def init_db():
         )
     """)
     
-    # Создание чистой актуальной схемы соискателей
+    # Создание схемы соискателей
     cursor.execute("""
         CREATE TABLE citizens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,14 +85,14 @@ def init_db():
         'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')
     """)
     
+    # FIX: Точное количество знаков вопроса совпадает с количеством элементов в кортежах (по 6 штук)
     cursor.executemany("""
-        INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id) VALUES (?, ?, ?, ?, ?, 1)
+        INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id) VALUES (?, ?, ?, ?, ?, ?)
     """, [
-        ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный專员", 1),
+        ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный специалист", 1),
         ("Смирнов Кирилл Михайлович", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1),
         ("Иванов Игорь Игоревич", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1)
     ])
-    cursor.execute("UPDATE citizens SET current_status = 'Железный специалист' WHERE id = 1")
     conn.commit()
     conn.close()
 
@@ -187,3 +187,4 @@ if user_role == "🏢 Личный кабинет Производственни
         for citizen in citizens_list:
             with st.container(border=True):
                 st.markdown(f"### 👤 Специалист: {citizen['fio']}")
+                st.markdown(f"**Телефон:** {citizen['phone']} | **Район проживания:** {citizen['district']}")
