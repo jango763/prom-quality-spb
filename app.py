@@ -27,48 +27,51 @@ DB_NAME = "platform.db"
 
 def init_db():
     """Инициализация единой общей базы данных для всех пользователей платформы"""
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    
-    # Таблица состояния заводов (баланс, премиум)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS factories (
-            id TEXT PRIMARY KEY, balance REAL, is_premium INTEGER
-        )
-    """)
-    # Таблица промышленных курсов ДПО
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, factory TEXT, clicks INTEGER, leads INTEGER, color TEXT
-        )
-    """)
-    # Таблица b2b/b2c лидов соискателей
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS leads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, status TEXT, rating TEXT
-        )
-    """)
-    
-    # Наполнение демо-данными при первом запуске
-    cursor.execute("SELECT COUNT(*) FROM factories")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 25000.0, 0)")
-        cursor.executemany("INSERT INTO courses (title, factory, clicks, leads, color) VALUES (?, ?, ?, ?, ?)", [
-            ("Отказоустойчивость гидравлических систем", "АО 'Силовые машины'", 1420, 84, "🔵"),
-            ("Программирование ЧПУ циклов серии ИТ-42", "АО 'Кировский завод'", 2850, 196, "⚙️"),
-            ("Метрология и лазерный контроль геометрии", "Обуховский завод", 930, 41, "🔬")
-        ])
-        cursor.executemany("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, ?, ?)", [
-            ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Программирование ЧПУ циклов серии ИТ-42", "Заморожен", "⭐ 4.9"),
-            ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Отказоустойчивость гидравлических систем", "Заморожен", "⭐ 4.7")
-        ])
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        
+        # Таблица состояния заводов (баланс, премиум)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS factories (
+                id TEXT PRIMARY KEY, balance REAL, is_premium INTEGER
+            )
+        """)
+        # Таблица промышленных курсов ДПО
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS courses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, factory TEXT, clicks INTEGER, leads INTEGER, color TEXT
+            )
+        """)
+        # Таблица b2b/b2c лидов соискателей
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS leads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, status TEXT, rating TEXT
+            )
+        """)
+        
+        # Наполнение демо-данными при первом запуске
+        cursor.execute("SELECT COUNT(*) FROM factories")
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 25000.0, 0)")
+            cursor.executemany("INSERT INTO courses (title, factory, clicks, leads, color) VALUES (?, ?, ?, ?, ?)", [
+                ("Отказоустойчивость гидравлических систем", "АО 'Силовые машины'", 1420, 84, "🔵"),
+                ("Программирование ЧПУ циклов серии ИТ-42", "АО 'Кировский завод'", 2850, 196, "⚙️"),
+                ("Метрология и лазерный контроль геометрии", "Обуховский завод", 930, 41, "🔬")
+            ])
+            cursor.executemany("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, ?, ?)", [
+                ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Программирование ЧПУ циклов серии ИТ-42", "Заморожен", "⭐ 4.9"),
+                ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Отказоустойчивость гидравлических систем", "Заморожен", "⭐ 4.7")
+            ])
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        st.error(f"Критическая ошибка инициализации БД: {str(e)}")
 
 init_db()
 
 # ==============================================================================
-# 3. БЕЗОПАСНЫЕ КОНТРОЛЛЕРЫ (ERROR BOUNDARY С TRY/EXCEPT)
+# 3. БЕЗОПАСНЫЕ КОНТРОЛЛЕРЫ (ERROR BOUNDARIES С TRY/EXCEPT)
 # ==============================================================================
 def get_factory_data():
     try:
@@ -82,13 +85,18 @@ def get_factory_data():
         return False, f"Ошибка чтения данных завода: {str(e)}"
 
 def buy_lead_transaction(lead_id):
-    """Безопасная b2b-транзакция списания средств за лид"""
+    """Исправленная b2b-транзакция списания средств за лид (Уязвимость распаковки устранена)"""
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         cursor.execute("SELECT balance, is_premium FROM factories WHERE id='kirov_zavod'")
         res = cursor.fetchone()
-        balance, is_premium = res[0], res[1]
+        
+        if not res:
+            conn.close()
+            return False, "Завод не найден"
+            
+        balance, is_premium = res  # Безопасная корректная распаковка кортежа
         
         if is_premium == 0 and balance < 500:
             conn.close()
@@ -120,7 +128,7 @@ def add_new_lead_from_student(course_title):
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         random_digits = "".join([str(random.randint(0, 9)) for _ in range(7)])
-        safe_phone = f"+7 (9xx) {random_digits[:3]}-{random_digits[3:5]}-{random_digits[5:]}"
+        safe_phone = f"+7 (931) {random_digits[:3]}-{random_digits[3:5]}-{random_digits[5:]}"
         
         cursor.execute("""
             INSERT INTO leads (name, phone, course_title, status, rating) 
@@ -134,7 +142,7 @@ def add_new_lead_from_student(course_title):
         return False, f"Ошибка генерации лида: {str(e)}"
 
 # ==============================================================================
-# 4. ИНТЕРФЕЙС И УПРАВЛЕНИЕ СЕССИЕЙ (Внутри st.session_state только кэш UI)
+# 4. ИНТЕРФЕЙС И УПРАВЛЕНИЕ СЕССИЕЙ
 # ==============================================================================
 if "active_course_id" not in st.session_state:
     st.session_state["active_course_id"] = None
@@ -155,9 +163,9 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Живые KPI подтягиваются из общей БД
+# Живые KPI подтягиваются из общей БД (Безопасный расчет через .loc)
 conn = sqlite3.connect(DB_NAME)
-total_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads", conn).iloc[0]['cnt']
+total_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads", conn).loc[0, 'cnt']
 conn.close()
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -168,10 +176,10 @@ kpi4.metric(label="Общий оборот эквайринга", value="4.2 м�
 st.write("---")
 
 # ==============================================================================
-# БИЗНЕС-ЛОГИКА РОЛЕЙ
+# ОТРИСОВКА СТРАНИЦ В ЗАВИСИМОСТИ ОТ РОЛИ
 # ==============================================================================
 if user_role == "🏢 Предприятие / Завод (B2B)":
-    st.subheader("📊 Мониторинг b2b-бюджета и цифрового кадрового следа")
+    st.subheader("🏢 Кабинет Индустриального Партнера")
     
     success, factory = get_factory_data()
     if not success:
@@ -189,7 +197,7 @@ if user_role == "🏢 Предприятие / Завод (B2B)":
         c3.metric(label="Ваши целевые лиды", value=len(leads_df))
         
         if factory["is_premium"] == 0:
-            if st.button("🔌 Переключить всю экосистему на Безлимитный Годовой Пакет", use_container_width=True, type="primary"):
+            if st.button("🔌 Перейти на Безлимитный Годовой Пакет", use_container_width=True, type="primary"):
                 succ, err = activate_premium_transaction()
                 if succ:
                     st.success(err)
@@ -210,8 +218,3 @@ if user_role == "🏢 Предприятие / Завод (B2B)":
                     is_open = (factory["is_premium"] == 1) or (row["status"] == "Разблокирован")
                     c_info.write(f"**ФИО соискателя:** {row['name'] if is_open else '🔒 Скрыто системой CPA'}")
                     
-                    if not is_open:
-                        has_cash = factory["balance"] >= 500
-                        btn_name = "💳 Открыть контакт (500 ₽)" if has_cash else "❌ Пополните счет"
-                        if c_act.button(btn_name, key=f"fac_buy_{row['id']}_{idx}", use_container_width=True, disabled=not has_cash):
-                            succ, err = buy_lead_transaction(row['id'])
