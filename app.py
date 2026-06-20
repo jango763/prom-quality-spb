@@ -46,9 +46,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite в режиме WAL с фабрикой словарей)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (Новая v2 база данных для защиты от KeyError)
 # ==============================================================================
-DB_NAME = "production_control.db"
+DB_NAME = "production_control_v2.db"
 
 def dict_factory(cursor, row):
     d = {}
@@ -61,19 +61,18 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute("PRAGMA journal_mode=WAL;")
     
-    cursor.execute("DROP TABLE IF EXISTS courses;")
-    cursor.execute("DROP TABLE IF EXISTS citizens;")
+    cursor.execute("CREATE TABLE IF NOT EXISTS courses (id INTEGER PRIMARY KEY AUTOINCREMENT, factory_name TEXT, course_title TEXT, equipment_model TEXT, safety_instructions TEXT, district TEXT, tag_cnc INTEGER, tag_robot INTEGER, tag_hydro INTEGER, secret_question TEXT, secret_answer TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS citizens (id INTEGER PRIMARY KEY AUTOINCREMENT, fio TEXT, phone TEXT, district TEXT, current_education TEXT, current_status TEXT, course_id INTEGER, is_contract_signed INTEGER DEFAULT 0, sim_passed INTEGER DEFAULT 0)")
     
-    cursor.execute("CREATE TABLE courses (id INTEGER PRIMARY KEY AUTOINCREMENT, factory_name TEXT, course_title TEXT, equipment_model TEXT, safety_instructions TEXT, district TEXT, tag_cnc INTEGER, tag_robot INTEGER, tag_hydro INTEGER, secret_question TEXT, secret_answer TEXT)")
-    cursor.execute("CREATE TABLE citizens (id INTEGER PRIMARY KEY AUTOINCREMENT, fio TEXT, phone TEXT, district TEXT, current_education TEXT, current_status TEXT, course_id INTEGER, is_contract_signed INTEGER DEFAULT 0, sim_passed INTEGER DEFAULT 0)")
-    
-    cursor.execute("INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1, 'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')")
-    
-    cursor.executemany("INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id, is_contract_signed, sim_passed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
-        ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее technical", "Железный специалист", 1, 1, 1),
-        ("Смирнов Кирилл Михайлович", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1, 1, 0),
-        ("Иванов Игорь Игоревич", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1, 0, 0)
-    ])
+    cursor.execute("SELECT COUNT(*) FROM courses")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1, 'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')")
+        
+        cursor.executemany("INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id, is_contract_signed, sim_passed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
+            ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный специалист", 1, 1, 1),
+            ("Смирнов Кирилл Михайлович", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1, 1, 0),
+            ("Иванов Игорь Игоревич", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1, 0, 0)
+        ])
     conn.commit()
     conn.close()
 
@@ -112,7 +111,7 @@ citizens_list = fetch_all_from_db("SELECT * FROM citizens")
 kpi1, kpi2, kpi3 = st.columns(3)
 kpi1.metric(label="Развернутых b2b-курсов", value=f"{len(courses_list)} моделей")
 kpi2.metric(label="Граждан в системе ДПО", value=f"{len(citizens_list)} соискателей")
-ready_cnt = sum(1 for c in citizens_list if c['current_status'] == 'Железный специалист')
+ready_cnt = sum(1 for c in citizens_list if c.get('current_status') == 'Железный специалист')
 kpi3.metric(label="Верифицировано «Железных специалистов»", value=f"{ready_cnt} мастеров")
 st.write("---")
 
@@ -170,4 +169,3 @@ if user_role == "🏢 Личный кабинет Производственни
                     
     with tab_hr_registry:
         st.subheader("Реестр соискателей в системе контроля квалификации:")
-        conn = sqlite3.connect(DB_NAME)
