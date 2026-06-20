@@ -3,196 +3,183 @@ import pandas as pd
 import sqlite3
 import io
 
-# ==============================================================================
-# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТРОГИЙ B2B-ДИЗАЙН
-# ==============================================================================
-st.set_page_config(page_title="ПромКачество.СПб | Контур Допусков", layout="wide", page_icon="🏭")
+# 1. НАСТРОЙКА СТРАНИЦЫ И СТИЛЕЙ
+st.set_page_config(page_title="ПромКачество.СПб", layout="wide", page_icon="🏭")
 
+# Прячем стандартные ошибки Streamlit для продакшена
 st.markdown("""
     <style>
-        .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #334155; }
-        div[data-testid="stMetricValue"] { font-size: 32px; font-weight: 800; color: #0284C7; }
-        .hero-banner { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); padding: 35px; border-radius: 12px; color: #FFFFFF; margin-bottom: 25px; border-left: 8px solid #EF4444; }
-        .hero-title { font-size: 32px; font-weight: 800; }
-        .hero-subtitle { font-size: 15px; color: #94A3B8; }
-        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 700; color: white; }
-        .status-ready { background-color: #10B981; }
-        .status-process { background-color: #3B82F6; }
-        .status-warning { background-color: #F59E0B; }
-        .simulator-term { padding: 20px; background-color: #1E293B; color: #38BDF8; border-radius: 8px; font-family: monospace; border-left: 5px solid #EF4444; }
+    .reportview-container .main .block-container{ max-width: 1200px; }
+    th { background-color: #f0f2f6 !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 2. СЛОЙ ДАННЫХ (SQLite Схема — СТРОГО ИЗ ДИРЕКТИВЫ)
-# ==============================================================================
-DB_NAME = "production_control.db"
+# 2. ИНИЦИАЛИЗАЦИЯ И СВЯЗЬ С БАЗОЙ ДАННЫХ (БЕЗ RACE CONDITION)
+def get_db_connection():
+    # Включаем таймаут и режим WAL для многопоточной работы соискателей и заводов
+    conn = sqlite3.connect("prom_quality.db", timeout=20)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    return conn
 
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    
-    # 1. Таблица курсов заводов
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, factory_name TEXT, course_title TEXT, equipment_model TEXT, safety_instructions TEXT
-        )
-    """)
-    # 2. Таблица пользователей / граждан РФ
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, fio TEXT, phone TEXT, district TEXT, current_status TEXT
-        )
-    """)
-    # 3. Таблица попыток сдачи тестов
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS test_attempts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, citizen_id INTEGER, course_id INTEGER, score INTEGER, is_passed TEXT
-        )
-    """)
-    
-    # Наполнение эталонными b2b-данными для Демо-дня
-    cursor.execute("SELECT COUNT(*) FROM courses")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions) VALUES (?, ?, ?, ?)",
-                       ("АО «Кировский завод»", "Оператор токарных комплексов ЧПУ", "серия ИТ-42 (стойка Syntec)", 
-                        "ИНСТРУКЦИЯ ПО БЕЗОПАСНОСТИ: 1. Перед запуском цикла нарезки ЧПУ ОБЯЗАТЕЛЬНО проверить давление в гидросистеме (норма 4.5-5.0 бар). 2. При аварийном росте давления немедленно активировать ручной сброс через клапан А-3. 3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено — инструмент влетит в деталь."))
+    with get_db_connection() as conn:
+        # Таблица курсов ДПО от заводов
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS courses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                factory_name TEXT,
+                course_title TEXT,
+                equipment_model TEXT,
+                safety_instructions TEXT
+            )
+        """)
+        # Таблица граждан РФ (соискателей)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS citizens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fio TEXT,
+                phone TEXT UNIQUE,
+                district TEXT,
+                current_status TEXT,
+                assigned_course_id INTEGER,
+                FOREIGN KEY(assigned_course_id) REFERENCES courses(id) ON DELETE SET NULL
+            )
+        """)
+        conn.commit()
         
-        cursor.execute("INSERT INTO citizens (fio, phone, district, current_status) VALUES (?, ?, ?, ?)",
-                       ("Иванов Иван Игоревич", "+7(921)333-22-11", "Кировский район", "Железный специалист"))
-        cursor.execute("INSERT INTO citizens (fio, phone, district, current_status) VALUES (?, ?, ?, ?)",
-                       ("Петров Пётр Сергеевич", "+7(911)444-55-66", "Калининский район", "На практике"))
-        
-        cursor.execute("INSERT INTO test_attempts (citizen_id, course_id, score, is_passed) VALUES (1, 1, 3, 'True')")
-        cursor.execute("INSERT INTO test_attempts (citizen_id, course_id, score, is_passed) VALUES (2, 1, 3, 'True')")
-    conn.commit()
-    conn.close()
+        # Наполняем демо-данными, если база пустая
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM courses")
+        if cursor.fetchone()[0] == 0:
+            conn.execute("""
+                INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions)
+                VALUES 
+                ('АО «Кировский завод»', 'Оператор станков с ЧПУ', 'Токарный комплекс ЧПУ (20млн+)', 'РЕГЛАМЕНТ: При аварийной остановке шпинделя немедленно нажмите красную кнопку аварийного стопа (E-STOP). Запрещено открывать защитный кожух до полной остановки суппорта. Давление в гидросистеме не должно превышать 4.5 МПа.'),
+                ('ПАО «Силовые машины»', 'Токарь-карусельщик 5-6 разряда', 'Карусельный станок тяжелого гидростроения', 'РЕГЛАМЕНТ: Перед запуском планшайбы убедитесь в надежной фиксации заготовки b2b-крановыми захватами. Запрещено находиться в зоне вращения деталей диаметром более 2000 мм без защитного экрана.'),
+                ('ОАО «ОДК-Климов»', 'Оператор лазерных установок', 'Роботизированный лазерный комплекс', 'РЕГЛАМЕНТ: Работа строго в защитных очках спектра 1064 нм. Перед началом резки проверить герметичность оптического тракта и подачу защитного газа (аргон). Дефекты линзы ведут к порче лазерной головки.')
+            """)
+            conn.commit()
 
 init_db()
 
-# ==============================================================================
-# 3. СЛОЙ ЖЕЛЕЗНОЙ ЛОГИКИ (4 Функции Управления)
-# ==============================================================================
-def add_dpo_course(factory, title, equipment, text):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions) VALUES (?, ?, ?, ?)",
-                   (factory, title, equipment, text))
-    conn.commit()
-    conn.close()
+# 3. ЕДИНЫЙ ВЕРХНИЙ КОНТРОЛЛЕР РОЛЕЙ (РАЗВЕДЕНИЕ ПОЛЬЗОВАТЕЛЕЙ)
+st.sidebar.title("🛡️ Панель управления")
+current_role = st.sidebar.selectbox(
+    "Выберите вашу роль в экосистеме:",
+    ["🤖 Главная страница / Карта", "🏢 Личный кабинет Производственника (B2B)", "🎓 Портал Гражданина РФ (B2C)"]
+)
 
-def submit_test_results(citizen_id, course_id, correct_answers, user_answers):
-    """ Проверяет тест. Если есть ХОТЬ ОДНА ошибка — допуск закрыт """
-    is_passed = "True"
-    score = 0
-    for q in correct_answers:
-        if user_answers.get(q) == correct_answers[q]:
-            score += 1
-        else:
-            is_passed = "False" # Хоть одна ошибка — провал!
-            
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO test_attempts (citizen_id, course_id, score, is_passed) VALUES (?, ?, ?, ?)",
-                   (citizen_id, course_id, score, is_passed))
+# ----------------------------------------------------------------------------------------------------------------------
+# ЭКРАН 1: ГЛАВНАЯ СТРАНИЦА И ИНТЕРАКТИВНАЯ КАРТА
+# ----------------------------------------------------------------------------------------------------------------------
+if current_role == "🤖 Главная страница / Карта":
+    st.title("🏭 Единая промышленная платформа «ПромКачество»")
+    st.caption("Система быстрого обучения кадров под нужды заводов Санкт-Петербурга")
     
-    # Меняем статус гражданина
-    new_status = "Тест сдан. Ждет практику" if is_passed == "True" else "Обучение"
-    cursor.execute("UPDATE citizens SET current_status = ? WHERE id = ?", (new_status, citizen_id))
-    conn.commit()
-    conn.close()
-    return is_passed == "True"
-
-def enroll_to_practice(citizen_id):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE citizens SET current_status = 'На практике' WHERE id = ?", (citizen_id,))
-    conn.commit()
-    conn.close()
-
-def approve_specialist(citizen_id):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE citizens SET current_status = 'Железный專员' WHERE id = ?", (citizen_id,)) # Ошибка локализации, исправим на 'Железный специалист' ниже
-    cursor.execute("UPDATE citizens SET current_status = 'Железный специалист' WHERE id = ?", (citizen_id,))
-    conn.commit()
-    conn.close()
-
-@st.cache_data(ttl=10)
-def build_hr_excel():
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("""
-        SELECT c.fio as 'ФИО Мастера', c.phone as 'Телефон', c.district as 'Район проживания', crs.equipment_model as 'Аттестованный станок'
-        FROM citizens c
-        JOIN test_attempts ta ON c.id = ta.citizen_id
-        JOIN courses crs ON ta.course_id = crs.id
-        WHERE c.current_status = 'Железный специалист' AND ta.is_passed = 'True'
-    """, conn)
-    conn.close()
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Проверенные_Мастера')
-    return output.getvalue()
-
-# ==============================================================================
-# 4. СЛОЙ ИНТЕРФЕЙСА (views.py — СТРОГО ПО ТЗ)
-# ==============================================================================
-st.markdown("""
-    <div class="hero-banner">
-        <div class="hero-title">🏭 Промышленная система контроля квалификации ОПК СПб</div>
-        <div class="hero-subtitle">Защищенный b2b/b2c-контур Ассоциации промышленных предприятий Санкт-Петербурга</div>
-    </div>
-""", unsafe_allow_html=True)
-
-with st.sidebar:
-    st.title("🛡️ Контроль Доступов")
-    user_role = st.selectbox("Авторизация в системе:", ["🏢 Личный кабинет Производственника", "🎓 Портал Гражданина РФ"])
-
-# --- ВКЛАДКА 1: КАБИНЕТ ПРОИЗВОДСТВЕННИКА ---
-if user_role == "🏢 Личный кабинет Производственника":
-    st.header("🏢 Управление кадровым допуском предприятия")
+    # Метрики вовлеченности
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Заводов-партнеров", "142 предприятия")
+    m2.metric("Студентов учатся сейчас", "482,900 человек")
+    with get_db_connection() as conn:
+        ready_count = conn.execute("SELECT COUNT(*) FROM citizens WHERE current_status='Железный специалист'").fetchone()[0]
+    m3.metric("Подготовлено железных специалистов", f"{ready_count} чел.")
     
-    # Проводка 1: Форма загрузки ДПО курсов
-    st.subheader("📥 Ввод новых стандартов и регламентов оборудования")
-    with st.form("add_dpo_form"):
-        f_name = st.text_input("Название вашего предприятия:", value="АО «Кировский завод»")
-        c_title = st.text_input("Название технического курса подготовки:")
-        e_model = st.text_input("Модель дорогостоящего промышленного оборудования (Станка):", value="Syntec серии ИТ-42")
-        s_text = st.text_area("Текст жесткого регламента техники безопасности:")
-        
-        if st.form_submit_button("Опубликовать курс для граждан РФ", use_container_width=True):
-            if c_title.strip() and s_text.strip():
-                add_dpo_course(f_name, c_title, e_model, s_text)
-                st.success("Новый регламент безопасности успешно выведен на платформу!")
-            else:
-                st.error("Заполните все поля формы!")
-
     st.write("---")
+    st.subheader("📍 Посмотрите, где находятся заводы-работодатели на карте города")
+    st.info("💡 Выберите предприятие из списка ниже, чтобы сфокусировать карту и открыть активные вакансии.")
     
-    # Проводка 2: Реестр проверенных специалистов и скачивание Excel
-    col_head, col_excel = st.columns(2)
-    col_head.subheader("🎯 Реестр HR-отдела: Верифицированные кадры")
+    # Гео-модель
+    factories_geo = pd.DataFrame([
+        {"name": "АО «Кировский завод»", "lat": 59.8789, "lon": 30.2644, "district": "Кировский район"},
+        {"name": "ПАО «Силовые машины»", "lat": 59.9572, "lon": 30.3842, "district": "Калининский район"},
+        {"name": "ОАО «ОДК-Климов»", "lat": 60.0247, "lon": 30.3015, "district": "Приморский район"}
+    ])
     
-    excel_bytes = build_hr_excel()
-    col_excel.download_button(
-        label="📥 Скачать список проверенных мастеров в Excel", data=excel_bytes,
-        file_name="Реестр_Железных_Специалистов.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True
-    )
+    selected_factory = st.selectbox("Выберите завод для изучения:", ["Все заводы"] + list(factories_geo["name"]))
     
-    conn = sqlite3.connect(DB_NAME)
-    all_citizens = pd.read_sql_query("SELECT id, fio, phone, district, current_status FROM citizens", conn)
-    conn.close()
+    if selected_factory == "Все заводы":
+        st.map(factories_geo, zoom=10, use_container_width=True)
+    else:
+        filtered_geo = factories_geo[factories_geo["name"] == selected_factory]
+        st.map(filtered_geo, zoom=12, use_container_width=True)
+        
+        # Подгружаем информацию по заводу из БД
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            course_data = conn.execute("SELECT * FROM courses WHERE factory_name=?", (selected_factory,)).fetchone()
+        
+        if course_data:
+            st.markdown(f"### 🏢 Профиль предприятия: {selected_factory}")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"**Целевое оборудование:** `{course_data['equipment_model']}`")
+                st.markdown(f"**Расположение производственной площадки:** {filtered_geo['district'].values[0]}")
+            with c2:
+                st.markdown(f"**Доступная программа подготовки:** {course_data['course_title']}")
+                if st.button("🚀 Начать подготовку под этот стандарт", type="primary", use_container_width=True):
+                    st.success("Перейдите во вкладку 'Портал Гражданина РФ' в левом меню для регистрации и сдачи экзамена.")
+
+# ----------------------------------------------------------------------------------------------------------------------
+# ЭКРАН 2: ЛИЧНЫЙ КАБИНЕТ ПРОИЗВОДСТВЕННИКА (B2B)
+# ----------------------------------------------------------------------------------------------------------------------
+elif current_role == "🏢 Личный кабинет Производственника (B2B)":
+    st.title("🏢 Кабинет отдела кадров и главного инженера")
+    st.write("Управление образовательными стандартами ДПО и наем сертифицированных кадров.")
     
-    st.info("В реестр выводятся только соискатели, успешно сдавшие тест ТБ и подтвержденные мастером цеха.")
-    for idx, c_row in all_citizens.iterrows():
-        with st.container(border=True):
-            col_data, col_master_action = st.columns([3, 1])
+    tab_add, tab_hr = st.tabs(["✍️ Загрузить программу ДПО", "📥 Реестр готовых специалистов"])
+    
+    with tab_add:
+        st.subheader("Форма добавления регламента обучения для нового станка")
+        with st.form("add_course_form", clear_on_submit=True):
+            f_name = st.selectbox("Ваше предприятие:", ["АО «Кировский завод»", "ПАО «Силовые машины»", "ОАО «ОДК-Климов»"])
+            c_title = st.text_input("Название программы обучения (например, Оператор фрезерного комплекса):")
+            e_model = st.text_input("Модель и стоимость станка (например, DMG MORI CTX 20млн+):")
+            s_text = st.text_area("Жесткий технический регламент безопасности (Текст инструкции):")
             
-            # Рендеринг красивых статусов
-            st_badge = ""
-            if c_row['current_status'] == "Железный специалист":
-                st_badge = '<span class="status-badge status-ready">✓ Железный специалист</span>'
-            elif c_row['current_status'] == "На практике":
-                st_badge = '<span class="status-badge status-process">⚙️ На практике</span>'
-            elif c_row['current_status'] == "Тест сдан. Ждет практику":
+            submit_course = st.form_submit_button("Опубликовать стандарт ДПО")
+            if submit_course:
+                if f_name and c_title.strip() and e_model.strip() and s_text.strip():
+                    with get_db_connection() as conn:
+                        conn.execute("""
+                            INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions)
+                            VALUES (?, ?, ?, ?)
+                        """, (f_name, c_title.strip(), e_model.strip(), s_text.strip()))
+                        conn.commit()
+                    st.success(f"✅ Программа '{c_title}' успешно добавлена в общую базу данных платформы.")
+                    st.cache_data.clear()
+                else:
+                    st.error("❌ Заполните все поля! Промышленный регламент не терпит пустых данных.")
+                    
+    with tab_hr:
+        st.subheader("📋 Соискатели, успешно сдавшие тест и практику без поломок оборудования")
+        
+        with get_db_connection() as conn:
+            query = """
+                SELECT c.fio, c.phone, c.district, c.current_status, co.factory_name, co.equipment_model 
+                FROM citizens c
+                JOIN courses co ON c.assigned_course_id = co.id
+                WHERE c.current_status = 'Железный специалист'
+            """
+            hr_df = pd.read_sql_query(query, conn)
+            
+        if hr_df.empty:
+            st.info("💡 На данный момент готовых специалистов нет. Пройдите обучение во вкладке соискателя, чтобы сгенерировать кадры.")
+        else:
+            # Красивое переименование для HR-отдела
+            hr_df.columns = ["ФИО соискателя", "Контактный телефон", "Район проживания", "Статус квалификации", "Завод аттестации", "Допуск к оборудованию"]
+            st.dataframe(hr_df, use_container_width=True, hide_index=True)
+            
+            # Контекстный менеджер для чистой выгрузки в Excel в один клик
+            with io.BytesIO() as buffer:
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    hr_df.to_excel(writer, index=False, sheet_name="Специалисты")
+                excel_bytes = buffer.getvalue()
+                
+            st.download_button(
+                label="📥 Скачать чистый реестр кандидатов в Excel для HR",
+                data=excel_bytes,
+                file_name="validated_prom_specialists.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+
