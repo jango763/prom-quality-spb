@@ -31,53 +31,40 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS factories (id TEXT PRIMARY KEY, balance REAL, is_premium INTEGER)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS courses (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, factory TEXT, clicks INTEGER, leads INTEGER, color TEXT, lat REAL, lon REAL, district TEXT, vacancies INTEGER, desc TEXT, spec TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS leads (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, status TEXT, rating TEXT)")
     
     cursor.execute("SELECT COUNT(*) FROM factories")
-    if cursor.fetchone() == 0:
+    if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 1500.0, 0)")
+        cursor.executemany("""
+            INSERT INTO courses (title, factory, clicks, leads, color, lat, lon, district, vacancies, desc, spec) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, [
+            (
+                "Отказоустойчивость гидравлических систем", "ПАО 'Силовые машины' (ЛМЗ)", 1420, 84, "🔵", 59.9572, 30.3842, "Калининский район", 38,
+                "Крупнейшее в стране энергомашиностроительное предприятие. Производство мощных паровых, газовых и гидравлических турбин для ТЭС, АЭС и ГЭС.",
+                "Допуск к высокоточному измерительному оборудованию шеринг-хаба."
+            ),
+            (
+                "Программирование ЧПУ циклов серии ИТ-42", "АО 'Кировский завод'", 2850, 196, "⚙️", 59.8789, 30.2644, "Кировский район", 42,
+                "Ведущее машиностроительное предприятие России. Выпуск тракторов 'Кировец', буровой техники и турбогенераторов. Модернизированное b2b-производство полного цикла.",
+                "Требуется знание цифровых стандартов безопасности 'ПромКачество'."
+            ),
+            (
+                "Метрология и лазерный контроль геометрии", "ОАО 'ОДК-Климов'", 930, 41, "🔬", 60.0247, 30.3015, "Выборгский район", 25,
+                "Лидер авиационного двигателестроения. Разработка, производство и сервисное обслуживание вертолетных и самолетных двигателей. Высокотехнологичные чистые зоны.",
+                "Сертификация по строгим оборонным стандартам качества."
+            )
+        ])
         cursor.executemany("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, ?, ?)", [
-            ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Цифровые стандарты безопасности «ПромКачество»", "Заморожен", "⭐ 4.9"),
-            ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Допуск к высокоточному измерительному оборудованию шеринг-хаба", "Заморожен", "⭐ 4.7")
+            ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Программирование ЧПУ циклов серии ИТ-42", "Заморожен", "⭐ 4.9"),
+            ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Отказоустойчивость гидравлических систем", "Заморожен", "⭐ 4.7")
         ])
     conn.commit()
     conn.close()
 
 init_db()
-
-# Данные для карты и b2b-профилей из вашего ТЗ
-factories_data = pd.DataFrame([
-    {
-        "name": "АО «Кировский завод»",
-        "latitude": 59.8789,
-        "longitude": 30.2644,
-        "district": "Кировский район",
-        "vacancies_count": 42,
-        "vacancies_list": "• Оператор станков с ЧПУ\n• Слесарь-сборщик\n• Наладчик роботизированных комплексов",
-        "description": "Веднощее машиностроительное предприятие России. Выпуск тракторов «Кировец», буровой техники и турбогенераторов. Модернизированное b2b-производство полного цикла.",
-        "course": "Цифровые стандарты безопасности «ПромКачество»"
-    },
-    {
-        "name": "ПАО «Силовые машины» (ЛМЗ)",
-        "latitude": 59.9572,
-        "longitude": 30.3842,
-        "district": "Калининский район",
-        "vacancies_count": 38,
-        "vacancies_list": "• Инженер-технолог по сварке\n• Токарь-карусельщик 5-6 разряда\n• Контролер ОТК",
-        "description": "Крупнейшее в стране энергомашиностроительное предприятие. Производство мощных паровых, газовых и гидравлических турбин для ТЭС, АЭС и ГЭС.",
-        "course": "Допуск к высокоточному измерительному оборудованию шеринг-хаба"
-    },
-    {
-        "name": "ОАО «ОДК-Климов»",
-        "latitude": 60.0247,
-        "longitude": 30.3015,
-        "district": "Приморский район",
-        "vacancies_count": 25,
-        "vacancies_list": "• Монтажник электрооборудования летательных аппаратов\n• Испытатель двигателей\n• Оператор лазерных установок",
-        "description": "Лидер авиационного двигателестроения. Разработка, производство и сервисное обслуживание вертолетных и самолетных двигателей. Высокотехнологичные чистые зоны.",
-        "course": "Сертификация по строгим оборонным стандартам качества"
-    }
-])
 
 # Контроллеры b2b-логики
 def get_factory_data():
@@ -96,7 +83,7 @@ def update_factory_balance(amount):
         cursor.execute("UPDATE factories SET balance = balance + ? WHERE id='kirov_zavod'", (amount,))
         conn.commit()
         conn.close()
-        return True, "Успешно"
+        return True, "Баланс успешно пополнен"
     except Exception as e:
         return False, str(e)
 
@@ -110,16 +97,23 @@ def buy_lead_transaction(lead_id):
             conn.close()
             return False, "Завод не найден"
         balance, is_premium = res
-        if is_premium == 1:
-            cursor.execute("UPDATE leads SET status = 'Разблокирован' WHERE id = ?", (lead_id,))
-            conn.commit()
-            conn.close()
-            return True, "Успешно"
-        if balance < 500:
+        if is_premium == 0 and balance < 500:
             conn.close()
             return False, "Недостаточно средств"
-        cursor.execute("UPDATE factories SET balance = balance - 500 WHERE id='kirov_zavod'")
+        if is_premium == 0:
+            cursor.execute("UPDATE factories SET balance = balance - 500 WHERE id='kirov_zavod'")
         cursor.execute("UPDATE leads SET status = 'Разблокирован' WHERE id = ?", (lead_id,))
+        conn.commit()
+        conn.close()
+        return True, "Успешно"
+    except Exception as e:
+        return False, str(e)
+
+def simulate_marketing_traffic(course_title, added_clicks):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE courses SET clicks = clicks + ? WHERE title = ?", (added_clicks, course_title))
         conn.commit()
         conn.close()
         return True, "Успешно"
@@ -134,6 +128,7 @@ def add_new_lead_from_student(course_title):
         safe_phone = f"+7 (931) {random_digits[:3]}-{random_digits[3:5]}-{random_digits[5:]}"
         cursor.execute("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, 'Заморожен', ?)",
                        (f"Выпускник академии №{random.randint(100, 999)}", safe_phone, course_title, f"⭐ {random.uniform(4.5, 5.0):.1f}"))
+        cursor.execute("UPDATE courses SET leads = leads + 1 WHERE title = ?", (course_title,))
         conn.commit()
         conn.close()
         return True, "Успешно"
@@ -170,7 +165,7 @@ unlocked_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads WHER
 conn.close()
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-kpi1.metric(label="Заводов-партнеров в системе", value=f"{len(factories_data)} предприятия")
+kpi1.metric(label="Заводов-партнеров в системе", value="142 предприятия")
 kpi2.metric(label="Студентов учатся сейчас", value="482,900 человек")
 kpi3.metric(label="Всего подготовлено выпускников", value=f"{int(total_leads_count)} человек")
 kpi4.metric(label="Подобрано сотрудников на заводы", value=f"{int(unlocked_leads_count)} человек")
@@ -197,12 +192,8 @@ if user_role == "🏢 Для заводов и производств":
         conn.close()
         c3.metric(label="Готовых кандидатов в базе", value=len(leads_df))
 
-        # ИСПРАВЛЕННЫЙ ПУЛЬТ УПРАВЛЕНИЯ БЮДЖЕТОМ (СТРОГО СОБЛЮДЕНЫ ОТСТУПЫ)
         st.write("---")
         st.subheader("⚙️ Панель управления b2b-бюджетом завода")
         col_pay, col_tariff = st.columns(2)
-        
         with col_pay:
             st.markdown("**💰 Имитация пополнения счета подбора:**")
-            deposit_amount = st.number_input("Введите сумму пополнения (₽):", min_value=1000, max_value=500000, value=10000, step=5000)
-            if st.button("💳 Внести средства на баланс", use_container_width=True):
