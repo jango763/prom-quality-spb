@@ -1,29 +1,14 @@
 import streamlit as st
 import pandas as pd
 
-# 1. Жесткое правило: Конфигурация страницы на самой первой строчке кода
+# 1. Главная конфигурация страницы — строго первой строчкой
 st.set_page_config(page_title="ПромКачество.СПб", layout="wide", page_icon="🏭")
 
 # ==============================================================================
-# 2. УНИЧТОЖЕНИЕ МАГИЧЕСКИХ СТРОК (Константы меню)
+# 2. ЕДИНЫЙ ИЗОЛИРОВАННЫЙ STATE ПЛАТФОРМЫ (Порядок в оперативной памяти сессии)
 # ==============================================================================
-class MenuOptions:
-    HUB = "Вариант 1: Кадровый хаб (Мэтчинг)"
-    SHARING = "Вариант 2: Шеринг-экономика & R&D"
-    NAVIGATOR = "Вариант 3: Финтех-Navigator образования"
-    PROJECT_SM = "🔥 Вариант 4: Экосистема ДПО (Проект С.М.)"
-    AUDIT = "📊 Панель Ассоциации (Аудит)"
-
-# ==============================================================================
-# 3. СГРУППИРОВАННАЯ ИНИЦИАЛИЗАЦИЯ STATE (Наводим порядок в памяти)
-# ==============================================================================
-if "matches_history" not in st.session_state: st.session_state.matches_history = []
-if "bookings_history" not in st.session_state: st.session_state.bookings_history = []
-if "parent_leads" not in st.session_state: st.session_state.parent_leads = []
-
-# Группируем все финтех-переменные проекта С.М. в один изолированный словарь
-if "sm_project" not in st.session_state:
-    st.session_state["sm_project"] = {
+if "app_platform" not in st.session_state:
+    st.session_state["app_platform"] = {
         "balance": 1500.00,
         "is_premium": False,
         "courses": [
@@ -36,112 +21,116 @@ if "sm_project" not in st.session_state:
         ]
     }
 
+# Извлекаем данные для удобного использования в коде
+platform_data = st.session_state["app_platform"]
+
 # ==============================================================================
-# 4. АРХИТЕКТУРНАЯ МОДУЛЬНОСТЬ (Логические функции вместо простыни кода)
+# 3. ГЛАВНЫЙ ИНТЕРФЕЙС ПЛАТФОРМЫ
 # ==============================================================================
-def render_career_hub():
-    st.header("🎯 Концепт: Умный b2b-мэтчинг и Цифровой след выпускника")
-    st.write("Интеллектуальный подбор молодых специалистов под нужды ОПК СПб.")
-    # Здесь будет находиться или вызываться ваш старый код Варианта 1
-    st.info("Модуль Кадрового хаба успешно инициализирован.")
+st.title("🏭 Цифровая экосистема «ПромКачество.СПб»")
+st.caption("Официальная b2b/b2c-платформа Ассоциации промышленных производств Санкт-Петербурга")
 
-def render_sharing_economy():
-    st.header("🔬 Концепт: Шеринг свободных мощностей и оборудования НИИ")
-    st.write("Промышленный маркетплейс оборудования с расчетом SLA.")
-    st.info("Модуль Шеринг-экономики успешно инициализирован.")
+# Разделение платформы на три ключевых рабочих пространства (без сайдбара)
+tab_factory, tab_student, tab_marketing = st.tabs([
+    "🏢 Кабинет Промышленного Предприятия (Завод)", 
+    "🎓 Федеральный Портал ДПО (Гражданин)", 
+    "💥 Инструмент Вирусного Трафика (Тизерная Сеть)"
+])
 
-def render_fintech_navigator():
-    st.header("🎒 Концепт: Пошаговый конфигуратор промышленного обучения ребенка")
-    st.write("Сконструируйте бесшовную траекторию обучения и грантов.")
-    st.info("Модуль Финтех-Навигатора успешно инициализирован.")
-
-def render_project_sm():
-    """ Логика Варианта 4 для Сергея Марковича (ДПО + Финтех + Тизеры) """
-    st.header("🏭 Проект С.М.: Промышленное ДПО и Лидогенерация")
+# ------------------------------------------------------------------------------
+# СЕКЦИЯ 1: КАБИНЕТ ЗАВОДА (Финтех и Управление Лидами)
+# ------------------------------------------------------------------------------
+with tab_factory:
+    st.header("Управление b2b-бюджетом и кадровым резервом")
     
-    # Извлекаем сгруппированное состояние, чтобы не писать длинные конструкции
-    data = st.session_state["sm_project"]
+    # Метрики коммерческой модели
+    col_bal, col_tariff = st.columns(2)
+    col_bal.metric(label="Баланс расчетного счета предприятия (CPA)", value=f"{platform_data['balance']:,.2f} руб.")
     
-    tab_factory, tab_student, tab_marketing = st.tabs(["🏢 Кабинет Завода", "🎓 Портал Ученика", "💥 Шок-Трафик"])
+    tariff_status = "⚡ БЕЗЛИМИТНЫЙ ПАКЕТ ТРАФИКА" if platform_data["is_premium"] else "🪙 ПОШТУЧНАЯ ОПЛАТА (500р / готовый лид)"
+    col_tariff.metric(label="Текущий B2B-тариф", value=tariff_status)
     
-    with tab_factory:
-        st.subheader("📊 Финтех-панель управления бюджетом")
-        col_bal, col_tariff = st.columns(2)
-        col_bal.metric(label="Баланс расчетного счета (CPA)", value=f"{data['balance']:,.2f} руб.")
-        
-        tariff_status = "⚡ БЕЗЛИМИТНЫЙ ПАКЕТ" if data["is_premium"] else "🪙 ПОШТУЧНАЯ ОПЛАТА (500р/лид)"
-        col_tariff.metric(label="Текущий B2B-тариф", value=tariff_status)
-        
-        if not data["is_premium"]:
-            if st.button("🔌 Активировать полный безлимитный пакет лидов", use_container_width=True):
-                data["is_premium"] = True
-                st.success("Безлимитный пакет успешно подключен!")
+    # Кнопка перехода с CPA на Полный Пакет (Подписку)
+    if not platform_data["is_premium"]:
+        if st.button("🔌 Активировать полный годовой безлимит", use_container_width=True):
+            platform_data["is_premium"] = True
+            st.success("Вы успешно перешли на тариф 'Безлимитный пакет'. Все контакты открыты!")
+            st.rerun()
+            
+    st.write("---")
+    st.subheader("📥 Загрузка новой методики / курса ДПО")
+    with st.form("add_course_form"):
+        new_title = st.text_input("Название инструкции или стандарта для вывода на рынок:")
+        new_factory = st.text_input("Название вашего ведомства/завода:", value="АО 'Кировский завод'")
+        if st.form_submit_button("Опубликовать методику для граждан РФ", use_container_width=True):
+            if new_title.strip():
+                platform_data["courses"].append({"title": new_title, "factory": new_factory})
+                st.success(f"Методика '{new_title}' успешно выведена в федеральный каталог!")
                 st.rerun()
-                
-        st.write("---")
-        st.subheader("🎯 Поступившие кандидаты (Лиды с ДПО)")
-        
-        for idx, lead in enumerate(data["leads"]):
-            with st.container(border=True):
-                c_info, c_action = st.columns([3, 1])
-                is_unlocked = data["is_premium"] or lead["status"] == "Разблокирован"
-                
-                c_info.write(f"**Курс ДПО:** {lead['course']}")
-                c_info.write(f"**ФИО специалиста:** {lead['name'] if is_unlocked else '🔒 Данные скрыты платформой'}")
-                
-                if not is_unlocked:
-                    if c_action.button("💳 Выкупить контакт (500 р.)", key=f"sm_buy_{idx}", use_container_width=True):
-                        if data["balance"] >= 500:
-                            data["balance"] -= 500
-                            lead["status"] = "Разблокирован"
-                            st.rerun()
-                        else:
-                            st.error("Недостаточно средств. Пополните баланс.")
-                else:
-                    c_action.write(f"📞 **{lead['phone']}**")
+            else:
+                st.error("Укажите название курса.")
 
-    with tab_student:
-        st.subheader("🎓 Федеральный каталог бесплатных промышленных методик")
-        for c_idx, course in enumerate(data["courses"]):
-            with st.container(border=True):
-                st.write(f"### 📚 {course['title']}")
-                st.write(f"🏭 Индустриальный автор: **{course['factory']}**")
-                if st.button("🚀 Пройти бесплатное обучение и сдать тест", key=f"stud_btn_{c_idx}"):
-                    data["leads"].append({
-                        "name": "Новый верифицированный выпускник",
-                        "phone": "+7 (911) " + str(pd.Timestamp.now().microsecond)[:6],
-                        "course": course['title'],
-                        "status": "Заморожен"
-                    })
-                    st.success("Тест сдан! Ваша анкета передана на завод в виде лида.")
-                    st.rerun()
+    st.write("---")
+    st.subheader("🎯 Поступившие соискатели, обученные по вашим стандартам")
+    st.info("Модель 'Итальянских поваров': эти люди умеют работать только на вашем оборудовании.")
+    
+    for idx, lead in enumerate(platform_data["leads"]):
+        with st.container(border=True):
+            c_info, c_action = st.columns([3, 1])
+            is_unlocked = platform_data["is_premium"] or lead["status"] == "Разблокирован"
+            
+            c_info.write(f"**Пройденный курс:** {lead['course']}")
+            c_info.write(f"**ФИО специалиста:** {lead['name'] if is_unlocked else '🔒 Скрыто (Требуется выкуп лида)'}")
+            
+            if not is_unlocked:
+                if c_action.button("💳 Открыть контакт (500 р.)", key=f"buy_lead_{idx}", use_container_width=True):
+                    if platform_data["balance"] >= 500:
+                        platform_data["balance"] -= 500
+                        lead["status"] = "Разблокирован"
+                        st.success("Контакт разблокирован!")
+                        st.rerun()
+                    else:
+                        st.error("Недостаточно средств на балансе CPA. Пополните счет или перейдите на Безлимит.")
+            else:
+                c_action.write(f"📞 **{lead['phone']}**")
 
-    with tab_marketing:
-        st.subheader("💥 Инструмент захвата внимания (Тизерная сеть)")
+# ------------------------------------------------------------------------------
+# СЕКЦИЯ 2: ПОРТАЛ ДПО (Обучение Граждан)
+# ------------------------------------------------------------------------------
+with tab_student:
+    st.header("Бесплатное профессиональное обучение и быстрый старт в ОПК")
+    st.write("Выберите сертифицированную методику завода, пройдите интерактивный тест и получите гарантированный контракт.")
+    
+    for c_idx, course in enumerate(platform_data["courses"]):
+        with st.container(border=True):
+            st.subheader(f"📚 {course['title']}")
+            st.write(f"🏭 Разработчик стандарта и оборудования: **{course['factory']}**")
+            
+            if st.button("🚀 Начать изучение курса и сдать тест", key=f"start_course_{c_idx}"):
+                # Генерируем новый реальный лид в систему
+                new_student_name = "Новый верифицированный выпускник"
+                random_phone = f"+7 (911) {str(pd.Timestamp.now().microsecond)[:7]}"
+                
+                platform_data["leads"].append({
+                    "name": f"{new_student_name} №{c_idx+1}",
+                    "phone": random_phone,
+                    "course": course['title'],
+                    "status": "Заморожен"
+                })
+                st.balloons()
+                st.success("Поздравляем! Вы успешно изучили методику. Ваша анкета передана в HR-департамент завода.")
+                st.rerun()
+
+# ------------------------------------------------------------------------------
+# СЕКЦИЯ 3: ТИЗЕРНАЯ СЕТЬ (Вирусный Кликбейт)
+# ------------------------------------------------------------------------------
+with tab_marketing:
+    st.header("Инструмент захвата внимания половины граждан РФ")
+    st.write("Генератор шок-контента для агрессивного привлечения бесплатного b2c-трафика на платформу.")
+    
+    with st.container(border=True):
         st.error("### 🔥 ШОК! Самойлова Оксана подала в суд на Жигана из-за...")
-        st.write("...из-за того, что он тайно учился на новой промышленной платформе АПП СПБ и скрыл доходы!")
-        if st.button("УЗНАТЬ ПОДРОБНОСТИ И ЗАРЕГИСТРИРОВАТЬСЯ", use_container_width=True):
-            st.balloons()
-
-def render_association_audit():
-    st.header("📊 Оперативный b2b/b2c-мониторинг экосистемы")
-    st.write("Сквозной аудит транзакций в реальном времени.")
-    # Здесь будет находиться ваш старый код Панели Ассоциации
-
-# ==============================================================================
-# 5. ИЗБЫТОЧНЫЙ РЕНДЕРИНГ (Управление потоком через словарь-маршрутизатор)
-# ==============================================================================
-# Создаем чистый маппинг: какая строка меню какую функцию запускает
-routing_table = {
-    MenuOptions.HUB: render_career_hub,
-    MenuOptions.SHARING: render_sharing_economy,
-    MenuOptions.NAVIGATOR: render_fintech_navigator,
-    MenuOptions.PROJECT_SM: render_project_sm,
-    MenuOptions.AUDIT: render_association_audit,
-}
-
-# Отрисовка сайдбара строго отделена от логики данных
-selected_option = st.sidebar.radio("Выберите вариант концепции для демонстрации:", list(routing_table.keys()))
-
-# Запуск соответствующего модуля одной строчкой
-routing_table[selected_option]()
+        st.write("...из-за того, что он тайно от неё прошел бесплатное промышленное ДПО на платформе АПП Санкт-Петербурга, устроился на завод и скрыл миллионные доходы!")
+        st.write("👇 👇 👇")
+        if st.button("УЗНАТЬ ПОДРОБНОСТИ И ЗАРЕГИСТРИРОВАТЬСЯ БЕСПЛАТНО", use_container_width=True):
+            st.toast("Клик засчитан! Пользователь перенаправлен на вкладку обучения.")
