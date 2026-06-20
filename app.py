@@ -1,85 +1,147 @@
 import streamlit as st
 import pandas as pd
 
-# Настройка страницы
+# 1. Жесткое правило: Конфигурация страницы на самой первой строчке кода
 st.set_page_config(page_title="ПромКачество.СПб", layout="wide", page_icon="🏭")
 
-# --- Инициализация сессии ---
+# ==============================================================================
+# 2. УНИЧТОЖЕНИЕ МАГИЧЕСКИХ СТРОК (Константы меню)
+# ==============================================================================
+class MenuOptions:
+    HUB = "Вариант 1: Кадровый хаб (Мэтчинг)"
+    SHARING = "Вариант 2: Шеринг-экономика & R&D"
+    NAVIGATOR = "Вариант 3: Финтех-Navigator образования"
+    PROJECT_SM = "🔥 Вариант 4: Экосистема ДПО (Проект С.М.)"
+    AUDIT = "📊 Панель Ассоциации (Аудит)"
+
+# ==============================================================================
+# 3. СГРУППИРОВАННАЯ ИНИЦИАЛИЗАЦИЯ STATE (Наводим порядок в памяти)
+# ==============================================================================
 if "matches_history" not in st.session_state: st.session_state.matches_history = []
 if "bookings_history" not in st.session_state: st.session_state.bookings_history = []
 if "parent_leads" not in st.session_state: st.session_state.parent_leads = []
 
-# --- Финтех-данные (Вариант 4) ---
-if "sm_factory_balance" not in st.session_state: st.session_state.sm_factory_balance = 1500.00
-if "sm_is_premium" not in st.session_state: st.session_state.sm_is_premium = False
-if "sm_courses" not in st.session_state:
-    st.session_state.sm_courses = [
-        {"title": "Работа на токарных станках ЧПУ", "factory": "АО 'Кировский завод'"},
-        {"title": "Стандартизация промышленной гидравлики", "factory": "АО 'Силовые машины'"}
-    ]
-if "sm_leads" not in st.session_state:
-    st.session_state.sm_leads = [
-        {"name": "Иванов И.И. (СПбПУ)", "phone": "+7 (999) 111-22-33", "course": "Работа на токарных станках ЧПУ", "status": "Заморожен"},
-        {"name": "Петров П.Г. (ИТМО)", "phone": "+7 (999) 444-55-66", "course": "Стандартизация гидравлики", "status": "Заморожен"}
-    ]
+# Группируем все финтех-переменные проекта С.М. в один изолированный словарь
+if "sm_project" not in st.session_state:
+    st.session_state["sm_project"] = {
+        "balance": 1500.00,
+        "is_premium": False,
+        "courses": [
+            {"title": "Работа на токарных станках ЧПУ серии ИТ-42", "factory": "АО 'Кировский завод'"},
+            {"title": "Стандартизация промышленной гидравлики", "factory": "АО 'Силовые машины'"}
+        ],
+        "leads": [
+            {"name": "Иванов Иван Игоревич (СПбПУ)", "phone": "+7 (999) 111-22-33", "course": "Работа на токарных станках ЧПУ серии ИТ-42", "status": "Заморожен"},
+            {"name": "Петров Петр Георгиевич (ИТМО)", "phone": "+7 (999) 444-55-66", "course": "Стандартизация промышленной гидравлики", "status": "Заморожен"}
+        ]
+    }
 
-st.title("Экосистема «ПромКачество.СПб»")
+# ==============================================================================
+# 4. АРХИТЕКТУРНАЯ МОДУЛЬНОСТЬ (Логические функции вместо простыни кода)
+# ==============================================================================
+def render_career_hub():
+    st.header("🎯 Концепт: Умный b2b-мэтчинг и Цифровой след выпускника")
+    st.write("Интеллектуальный подбор молодых специалистов под нужды ОПК СПб.")
+    # Здесь будет находиться или вызываться ваш старый код Варианта 1
+    st.info("Модуль Кадрового хаба успешно инициализирован.")
 
-# Меню выбора концепции
-option = st.sidebar.radio(
-    "Выберите концепцию:",
-    ("Вариант 1: Кадровый хаб",
-     "Вариант 2: Шеринг R&D",
-     "Вариант 3: Финтех-навигатор",
-     "🔥 Вариант 4: Проект С.М. (Экосистема ДПО)",
-     "📊 Панель Ассоциации")
-)
+def render_sharing_economy():
+    st.header("🔬 Концепт: Шеринг свободных мощностей и оборудования НИИ")
+    st.write("Промышленный маркетплейс оборудования с расчетом SLA.")
+    st.info("Модуль Шеринг-экономики успешно инициализирован.")
 
-# ... (Логика Вариантов 1-3 сохранена) ...
+def render_fintech_navigator():
+    st.header("🎒 Концепт: Пошаговый конфигуратор промышленного обучения ребенка")
+    st.write("Сконструируйте бесшовную траекторию обучения и грантов.")
+    st.info("Модуль Финтех-Навигатора успешно инициализирован.")
 
-# ================= 🔥 ВАРИАНТ 4: ПРОЕКТ СЕРГЕЯ МАРКОВИЧА =================
-elif option == "🔥 Вариант 4: Экосистема ДПО и Лидогенерации (Проект С.М.)":
-    st.header("🏭 Экосистема ДПО, Финтеха и Лидогенерации")
-    sm_tab1, sm_tab2, sm_tab3 = st.tabs(["🏢 Кабинет Завода", "🎓 Портал Граждан", "💥 Вирусный Трафик"])
+def render_project_sm():
+    """ Логика Варианта 4 для Сергея Марковича (ДПО + Финтех + Тизеры) """
+    st.header("🏭 Проект С.М.: Промышленное ДПО и Лидогенерация")
     
-    with sm_tab1:
-        st.subheader("📊 Коммерческая панель")
-        col1, col2 = st.columns(2)
-        col1.metric("Баланс (CPA)", f"{st.session_state.sm_factory_balance:,.2f} руб.")
-        status = "🎯 АКТИВЕН" if st.session_state.sm_is_premium else "🪙 ПОШТУЧНО"
-        col2.metric("Тариф", status)
+    # Извлекаем сгруппированное состояние, чтобы не писать длинные конструкции
+    data = st.session_state["sm_project"]
+    
+    tab_factory, tab_student, tab_marketing = st.tabs(["🏢 Кабинет Завода", "🎓 Портал Ученика", "💥 Шок-Трафик"])
+    
+    with tab_factory:
+        st.subheader("📊 Финтех-панель управления бюджетом")
+        col_bal, col_tariff = st.columns(2)
+        col_bal.metric(label="Баланс расчетного счета (CPA)", value=f"{data['balance']:,.2f} руб.")
         
-        if not st.session_state.sm_is_premium:
-            if st.button("🔌 Перейти на безлимит", use_container_width=True):
-                st.session_state.sm_is_premium = True
+        tariff_status = "⚡ БЕЗЛИМИТНЫЙ ПАКЕТ" if data["is_premium"] else "🪙 ПОШТУЧНАЯ ОПЛАТА (500р/лид)"
+        col_tariff.metric(label="Текущий B2B-тариф", value=tariff_status)
+        
+        if not data["is_premium"]:
+            if st.button("🔌 Активировать полный безлимитный пакет лидов", use_container_width=True):
+                data["is_premium"] = True
+                st.success("Безлимитный пакет успешно подключен!")
                 st.rerun()
                 
-        st.subheader("🎯 Лиды (Кандидаты)")
-        for idx, lead in enumerate(st.session_state.sm_leads):
+        st.write("---")
+        st.subheader("🎯 Поступившие кандидаты (Лиды с ДПО)")
+        
+        for idx, lead in enumerate(data["leads"]):
             with st.container(border=True):
-                c_info, c_btn = st.columns([3, 1])
-                is_unlocked = st.session_state.sm_is_premium or lead["status"] == "Разблокирован"
-                c_info.write(f"**Курс:** {lead['course']}")
-                c_info.write(f"**Соискатель:** {lead['name'] if is_unlocked else '🔒 Скрыт'}")
+                c_info, c_action = st.columns([3, 1])
+                is_unlocked = data["is_premium"] or lead["status"] == "Разблокирован"
+                
+                c_info.write(f"**Курс ДПО:** {lead['course']}")
+                c_info.write(f"**ФИО специалиста:** {lead['name'] if is_unlocked else '🔒 Данные скрыты платформой'}")
+                
                 if not is_unlocked:
-                    if c_btn.button("💳 500 р.", key=f"sm_buy_{idx}"):
-                        if st.session_state.sm_factory_balance >= 500:
-                            st.session_state.sm_factory_balance -= 500
-                            st.session_state.sm_leads[idx]["status"] = "Разблокирован"
+                    if c_action.button("💳 Выкупить контакт (500 р.)", key=f"sm_buy_{idx}", use_container_width=True):
+                        if data["balance"] >= 500:
+                            data["balance"] -= 500
+                            lead["status"] = "Разблокирован"
                             st.rerun()
-                else: c_btn.write(f"📞 {lead['phone']}")
+                        else:
+                            st.error("Недостаточно средств. Пополните баланс.")
+                else:
+                    c_action.write(f"📞 **{lead['phone']}**")
 
-    with sm_tab2:
-        st.subheader("🎓 Каталог обучения")
-        for c_idx, course in enumerate(st.session_state.sm_courses):
+    with tab_student:
+        st.subheader("🎓 Федеральный каталог бесплатных промышленных методик")
+        for c_idx, course in enumerate(data["courses"]):
             with st.container(border=True):
                 st.write(f"### 📚 {course['title']}")
-                if st.button("🚀 Пройти обучение", key=f"stud_btn_{c_idx}"):
-                    st.session_state.sm_leads.append({"name": "Новый спец", "phone": "+7 911 000", "course": course['title'], "status": "Заморожен"})
+                st.write(f"🏭 Индустриальный автор: **{course['factory']}**")
+                if st.button("🚀 Пройти бесплатное обучение и сдать тест", key=f"stud_btn_{c_idx}"):
+                    data["leads"].append({
+                        "name": "Новый верифицированный выпускник",
+                        "phone": "+7 (911) " + str(pd.Timestamp.now().microsecond)[:6],
+                        "course": course['title'],
+                        "status": "Заморожен"
+                    })
+                    st.success("Тест сдан! Ваша анкета передана на завод в виде лида.")
                     st.rerun()
 
-    with sm_tab3:
-        st.error("🔥 ШОК-КОНТЕНТ: Секрет заработка 300к+ на ЧПУ")
-        st.button("УЗНАТЬ ПОДРОБНОСТИ", use_container_width=True)
+    with tab_marketing:
+        st.subheader("💥 Инструмент захвата внимания (Тизерная сеть)")
+        st.error("### 🔥 ШОК! Самойлова Оксана подала в суд на Жигана из-за...")
+        st.write("...из-за того, что он тайно учился на новой промышленной платформе АПП СПБ и скрыл доходы!")
+        if st.button("УЗНАТЬ ПОДРОБНОСТИ И ЗАРЕГИСТРИРОВАТЬСЯ", use_container_width=True):
+            st.balloons()
 
-# ... (Логика Панели Ассоциации) ...
+def render_association_audit():
+    st.header("📊 Оперативный b2b/b2c-мониторинг экосистемы")
+    st.write("Сквозной аудит транзакций в реальном времени.")
+    # Здесь будет находиться ваш старый код Панели Ассоциации
+
+# ==============================================================================
+# 5. ИЗБЫТОЧНЫЙ РЕНДЕРИНГ (Управление потоком через словарь-маршрутизатор)
+# ==============================================================================
+# Создаем чистый маппинг: какая строка меню какую функцию запускает
+routing_table = {
+    MenuOptions.HUB: render_career_hub,
+    MenuOptions.SHARING: render_sharing_economy,
+    MenuOptions.NAVIGATOR: render_fintech_navigator,
+    MenuOptions.PROJECT_SM: render_project_sm,
+    MenuOptions.AUDIT: render_association_audit,
+}
+
+# Отрисовка сайдбара строго отделена от логики данных
+selected_option = st.sidebar.radio("Выберите вариант концепции для демонстрации:", list(routing_table.keys()))
+
+# Запуск соответствующего модуля одной строчкой
+routing_table[selected_option]()
