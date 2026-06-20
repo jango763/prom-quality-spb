@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import sqlite3
 import numpy as np
+import io
 
 # ==============================================================================
 # 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И КОРПОРАТИВНЫЕ СТИЛИ
@@ -14,11 +15,13 @@ st.markdown("""
         .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #4A5568; }
         div[data-testid="stMetricValue"] { font-size: 32px; font-weight: 800; color: #0284C7; }
         .highlight-box { padding: 20px; border-radius: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; margin-bottom: 15px; }
+        .matching-box { padding: 15px; border-radius: 8px; background-color: #ECFDF5; border-left: 5px solid #10B981; color: #065F46; font-weight: 600; margin-bottom: 15px; }
         .hero-banner { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); padding: 40px; border-radius: 16px; color: #FFFFFF; margin-bottom: 30px; border-left: 8px solid #0284C7; }
         .hero-title { font-size: 34px; font-weight: 800; color: #FFFFFF; margin-bottom: 5px; }
         .hero-subtitle { font-size: 16px; color: #94A3B8; }
         .marketing-card { padding: 15px; background-color: #FFFBEB; border-left: 5px solid #F59E0B; border-radius: 4px; margin-bottom: 10px; }
         .factory-title { color: #1E293B; font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+        .preview-box { padding: 20px; background-color: #FEF2F2; border: 2px dashed #EF4444; border-radius: 12px; margin-top: 15px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -31,14 +34,14 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS factories (id TEXT PRIMARY KEY, balance REAL, is_premium INTEGER)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS leads (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, status TEXT, rating TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS leads (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, status TEXT, rating TEXT, district TEXT, current_status TEXT)")
     
     cursor.execute("SELECT COUNT(*) FROM factories")
     if cursor.fetchone() == 0:
-        cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 1500.0, 0)")
-        cursor.executemany("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, ?, ?)", [
-            ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Цифровые стандарты безопасности «ПромКачество»", "Заморожен", "⭐ 4.9"),
-            ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Допуск к высокоточному измерительному оборудованию шеринг-хаба", "Заморожен", "⭐ 4.7")
+        cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 25000.0, 0)")
+        cursor.executemany("INSERT INTO leads (name, phone, course_title, status, rating, district, current_status) VALUES (?, ?, ?, ?, ?, ?, ?)", [
+            ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Цифровые стандарты безопасности «ПромКачество»", "Заморожен", "⭐ 4.9", "Кировский район", "Студент выпускного курса"),
+            ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Допуск к высокоточному измерительному оборудованию шеринг-хаба", "Заморожен", "⭐ 4.7", "Калининский район", "Выпускник колледжа/вуза")
         ])
     conn.commit()
     conn.close()
@@ -85,7 +88,7 @@ def get_factory_data():
         conn = sqlite3.connect(DB_NAME)
         df = pd.read_sql_query("SELECT * FROM factories WHERE id='kirov_zavod'", conn)
         conn.close()
-        return (True, df.iloc[0].to_dict()) if not df.empty else (False, "Завод не найден")
+        return (True, df.iloc.to_dict()) if not df.empty else (False, "Завод не найден")
     except Exception as e:
         return False, str(e)
 
@@ -126,26 +129,31 @@ def buy_lead_transaction(lead_id):
     except Exception as e:
         return False, str(e)
 
-def add_new_lead_from_student(course_title):
+def add_new_lead_from_student(name, phone, course_title, district, current_status):
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        random_digits = "".join([str(random.randint(0, 9)) for _ in range(7)])
-        safe_phone = f"+7 (931) {random_digits[:3]}-{random_digits[3:5]}-{random_digits[5:]}"
-        cursor.execute("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, 'Заморожен', ?)",
-                       (f"Выпускник академии №{random.randint(100, 999)}", safe_phone, course_title, f"⭐ {random.uniform(4.5, 5.0):.1f}"))
+        cursor.execute("""
+            INSERT INTO leads (name, phone, course_title, status, rating, district, current_status) 
+            VALUES (?, ?, ?, 'Заморожен', ?, ?, ?)
+        """, (name, phone, course_title, f"⭐ {random.uniform(4.5, 5.0):.1f}", district, current_status))
         conn.commit()
         conn.close()
         return True, "Успешно"
     except Exception as e:
         return False, str(e)
 
+def to_excel(df):
+    """ Конвертирует DataFrame в байтовый поток Excel для скачивания в один клик """
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Отчет ПромКачество')
+    processed_data = output.getvalue()
+    return processed_data
+
 # ==============================================================================
 # 3. НАВИГАЦИЯ И АВТОРИЗАЦИЯ
 # ==============================================================================
-if "active_course_title" not in st.session_state:
-    st.session_state["active_course_title"] = None
-
 with st.sidebar:
     st.title("Вход в систему")
     user_role = st.selectbox(
@@ -183,7 +191,6 @@ st.write("---")
 # --- ИНТЕРФЕЙС: ЗАВОД (B2B) ---
 if user_role == "🏢 Для заводов и производств":
     st.header("🏢 Кабинет отдела кадров предприятия")
-    st.write("Здесь вы управляете бюджетом на подбор персонала и видите анкеты людей, которые обучились по вашим инструкциям.")
     
     success, factory = get_factory_data()
     if success:
@@ -197,11 +204,4 @@ if user_role == "🏢 Для заводов и производств":
         conn.close()
         c3.metric(label="Готовых кандидатов в базе", value=len(leads_df))
 
-        # ИСПРАВЛЕННЫЙ ПУЛЬТ УПРАВЛЕНИЯ БЮДЖЕТОМ (СТРОГО СОБЛЮДЕНЫ ОТСТУПЫ В КНОПКАХ)
-        st.write("---")
-        st.subheader("⚙️ Панель управления b2b-бюджетом завода")
-        col_pay, col_tariff = st.columns(2)
-        
-        with col_pay:
-            st.markdown("**💰 Имитация пополнения счета подбора:**")
-            deposit_amount = st.number_input("Введите сумму пополнения (₽):", min_value=1000, max_value=500000, value=10000, step=5000)
+        # Панель управления бюджетом завода
