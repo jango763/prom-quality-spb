@@ -47,9 +47,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (Абсолютно чистая финальная СУБД для защиты от KeyError)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite в режиме WAL с фабрикой словарей)
 # ==============================================================================
-DB_NAME = "production_control_final.db"
+DB_NAME = "production_control_final_v3.db"
 
 def dict_factory(cursor, row):
     d = {}
@@ -62,36 +62,8 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute("PRAGMA journal_mode=WAL;")
     
-    # Создание структуры таблиц с нуля
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            factory_name TEXT,
-            course_title TEXT,
-            equipment_model TEXT,
-            safety_instructions TEXT,
-            district TEXT,
-            tag_cnc INTEGER,
-            tag_robot INTEGER,
-            tag_hydro INTEGER,
-            secret_question TEXT,
-            secret_answer TEXT
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT,
-            phone TEXT,
-            district TEXT,
-            current_education TEXT,
-            current_status TEXT,
-            course_id INTEGER,
-            is_contract_signed INTEGER DEFAULT 0,
-            sim_passed INTEGER DEFAULT 0
-        )
-    """)
+    cursor.execute("CREATE TABLE IF NOT EXISTS courses (id INTEGER PRIMARY KEY AUTOINCREMENT, factory_name TEXT, course_title TEXT, equipment_model TEXT, safety_instructions TEXT, district TEXT, tag_cnc INTEGER, tag_robot INTEGER, tag_hydro INTEGER, secret_question TEXT, secret_answer TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS citizens (id INTEGER PRIMARY KEY AUTOINCREMENT, fio TEXT, phone TEXT, district TEXT, current_education TEXT, current_status TEXT, course_id INTEGER, is_contract_signed INTEGER DEFAULT 0, sim_passed INTEGER DEFAULT 0)")
     
     cursor.execute("SELECT COUNT(*) FROM courses")
     if cursor.fetchone() == 0:
@@ -130,7 +102,7 @@ def fetch_all_from_db(query, params=()):
     return res
 
 # ==============================================================================
-# 3. НАВИГАЦИЯ И СЕССИОННЫЙ СЛОЙ (Сайдбар)
+# 3. НАВИГАЦИЯ И БЕЗОПАСНАЯ СЕССИЯ (Сайдбар)
 # ==============================================================================
 with st.sidebar:
     st.title("🔒 Контур Допусков АПП")
@@ -140,7 +112,7 @@ with st.sidebar:
     )
     st.write("---")
     
-    # Безопасное чтение сессии
+    # Прямое извлечение сессии из свежей базы данных
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = dict_factory
     citizens_session_list = conn.execute("SELECT id, fio, current_status FROM citizens").fetchall()
@@ -148,8 +120,12 @@ with st.sidebar:
     
     st.caption("👤 Активный сеанс соискателя:")
     user_map = {f"{c['fio']} [{c['current_status']}]": c['id'] for c in citizens_session_list}
+    
     selected_user_label = st.selectbox("Переключение профилей:", list(user_map.keys()))
-    active_student_id = user_map[selected_user_label]
+    
+    # FIX 152: Защита от KeyError через безопасный .get() с откатом на ID первого соискателя
+    default_id = citizens_session_list[0]['id'] if citizens_session_list else 1
+    active_student_id = user_map.get(selected_user_label, default_id)
 
 st.markdown("""
     <div class="hero-banner">
@@ -205,3 +181,4 @@ if user_role == "🏢 Личный кабинет Производственни
             c_robot = st.checkbox("Робототехника / Автоматизация цеха")
             c_hydro = st.checkbox("Промышленная гидравлика и тяжелые прессы")
             
+            s_instructions = st.text_area("Развернутый текст регламента безопасности и эксплуатации станка:")
