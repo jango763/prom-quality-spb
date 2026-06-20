@@ -1,146 +1,203 @@
 import streamlit as st
+import pandas as pd
 import random
+import numpy as np
 
 # ==============================================================================
-# 1. ГЛАВНАЯ КОНФИГУРАЦИЯ СТРАНИЦЫ
+# 1. СТИЛИЗАЦИЯ И ДНК БРЕНДА (Превращаем скучный UI в дорогой продукт)
 # ==============================================================================
-st.set_page_config(page_title="ПромКачество.СПб", layout="wide", page_icon="🏭")
+st.set_page_config(page_title="ПромКачество.СПб | Экосистема", layout="wide", page_icon="🏭")
+
+# Инъекция фирменных стилей Ассоциации (Промышленный графит + Высокотехнологичный синий)
+st.markdown("""
+    <style>
+        .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #4A5568; }
+        .stTabs [data-baseweb="tab"]:hover { color: #1E3A8A; }
+        .stTabs [data-baseweb="tab"][aria-selected="true"] { color: #0284C7; border-bottom-color: #0284C7; }
+        div[data-testid="stMetricValue"] { font-size: 32px; font-weight: 800; color: #0F172A; }
+        .highlight-box { padding: 20px; border-radius: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; margin-bottom: 15px; }
+    </style>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. ИЗОЛИРОВАННЫЙ STATE ПЛАТФОРМЫ (Исключаем рассинхронизацию данных)
+# 2. ИНИЦИАЛИЗАЦИЯ ДАННЫХ
 # ==============================================================================
 if "app_platform" not in st.session_state:
     st.session_state["app_platform"] = {
-        "balance": 1500.00,
+        "balance": 25000.00,
         "is_premium": False,
         "courses": [
-            {"title": "Работа на токарных станках ЧПУ серии ИТ-42", "factory": "АО 'Кировский завод'"},
-            {"title": "Стандартизация промышленной гидравлики", "factory": "АО 'Силовые машины'"}
+            {"title": "Отказоустойчивость гидравлических систем", "factory": "АО 'Силовые машины'", "clicks": 1420, "leads": 84, "color": "🔵"},
+            {"title": "Программирование ЧПУ циклов серии ИТ-42", "factory": "АО 'Кировский завод'", "clicks": 2850, "leads": 196, "color": "⚙️"},
+            {"title": "Метрология и лазерный контроль геометрии", "factory": "Обуховский завод", "clicks": 930, "leads": 41, "color": "🔬"}
         ],
         "leads": [
-            {"name": "Иванов Иван Игоревич (СПбПУ)", "phone": "+7 (999) 111-22-33", "course": "Работа на токарных станках ЧПУ серии ИТ-42", "status": "Заморожен"},
-            {"name": "Петров Пётр Георгиевич (ИТМО)", "phone": "+7 (999) 444-55-66", "course": "Стандартизация промышленной гидравлики", "status": "Заморожен"}
+            {"name": "Александров К.М. (Военмех)", "phone": "+7 (921) 345-67-89", "course": "Программирование ЧПУ циклов серии ИТ-42", "status": "Заморожен", "rating": "⭐ 4.9"},
+            {"name": "Дмитриев А.В. (СПбПУ)", "phone": "+7 (911) 987-65-43", "course": "Отказоустойчивость гидравлических систем", "status": "Заморожен", "rating": "⭐ 4.7"}
         ]
     }
 
 db = st.session_state["app_platform"]
 
 # ==============================================================================
-# 3. БЕЗОПАСНОСТЬ И УПРАВЛЕНИЕ РОЛЯМИ (ИСПРАВЛЕНИЕ БАГА #3)
+# 3. САЙДБАР: СТАТУСНЫЙ ИНТЕРФЕЙС АССОЦИАЦИИ
 # ==============================================================================
-st.sidebar.title("🔐 Контроль доступа АПП")
-st.sidebar.caption("Защищенный контур экосистемы")
-
-# Четкое разделение ролей пользователей без смешивания интерфейсов
-user_role = st.sidebar.selectbox(
-    "Выберите вашу авторизованную роль:",
-    ["🏢 Предприятие / Завод (B2B)", "🎓 Гражданин / Соискатель (B2C)", "💥 Маркетолог платформы (Трафик)"]
-)
-
-st.title("🏭 Цифровая экосистема «ПромКачество.СПб»")
-st.caption("Федеральный каркас опережающего ДПО и лидогенерации")
+with st.sidebar:
+    st.image("https://icons8.com", width=80)
+    st.title("ПромКачество")
+    st.caption("Ассоциация промышленных предприятий СПб")
+    st.write("---")
+    
+    user_role = st.selectbox(
+        "⚡ Авторизация в контуре:",
+        ["🏢 Предприятие / Завод (B2B)", "🎓 Гражданин / Ученик (B2C)", "💥 Маркетолог (Тизерный хаб)"]
+    )
+    
+    st.write("---")
+    st.info("ℹ️ Данный прототип демонстрирует сквозную финтех-модель ДПО и лидогенерации для ОПК Санкт-Петербурга.")
 
 # ==============================================================================
-# ИНТЕРФЕЙС РОЛИ: ЗАВОД
+# БИЗНЕС-ЛОГИКА: 🏢 КАБИНЕТ ЗАВОДА
 # ==============================================================================
 if user_role == "🏢 Предприятие / Завод (B2B)":
-    st.header("Личный кабинет промышленного предприятия")
+    st.title("🏢 Кабинет Индустриального Партнера")
+    st.subheader("Мониторинг b2b-бюджета и цифрового кадрового следа")
     
-    # Финтех-панель
-    col_bal, col_tariff = st.columns(2)
-    col_bal.metric(label="Баланс расчетного счета (CPA)", value=f"{db['balance']:,.2f} руб.")
-    
-    tariff_status = "⚡ БЕЗЛИМИТНЫЙ ПАКЕТ" if db["is_premium"] else "🪙 ПОШТУЧНАЯ ОПЛАТА (500р / лид)"
-    col_tariff.metric(label="Текущий B2B-тариф", value=tariff_status)
+    # Живые финтех-метрики
+    c1, c2, c3 = st.columns(3)
+    c1.metric(label="Финтех-баланс (CPA)", value=f"{db['balance']:,.2f} ₽", delta="Пополнение активно")
+    tariff_txt = "БЕЗЛИМИТ" if db["is_premium"] else "CPA (500₽/лид)"
+    c2.metric(label="Текущий B2B-тариф", value=tariff_txt)
+    c3.metric(label="Всего целевых лидов", value=len(db["leads"]))
     
     if not db["is_premium"]:
-        if st.button("🔌 Активировать полный годовой безлимит лидов", use_container_width=True):
+        if st.button("🔌 Переключить всю экосистему на Безлимитный Годовой Пакет", use_container_width=True, type="primary"):
             db["is_premium"] = True
-            st.success("Вы успешно перешли на безлимитный тариф!")
+            st.success("Экосистема переведена в режим безлимитного трафика!")
             st.rerun()
-            
-    st.write("---")
-    st.subheader("📥 Вывод новой промышленной методики на рынок РФ")
-    with st.form("add_course_form"):
-        new_title = st.text_input("Название регламента/инструкции для обучения:")
-        new_factory = st.text_input("Название вашего предприятия:", value="АО 'Кировский завод'")
-        if st.form_submit_button("Опубликовать стандарт в федеральный каталог", use_container_width=True):
-            if new_title.strip() and new_factory.strip():
-                db["courses"].append({"title": new_title.strip(), "factory": new_factory.strip()})
-                st.success(f"Методика '{new_title}' успешно верифицирована!")
-                st.rerun()
-            else:
-                st.error("Ошибка валидации: Заполните все поля формы!")
 
+    # ЖИВАЯ ГРАФИКА (Интересно изучать)
     st.write("---")
-    st.subheader("🎯 Поступившие соискатели (Кадровый резерв)")
+    st.subheader("📊 Аналитика вовлечения граждан в реальном времени")
+    
+    # Генерируем красивый график активности
+    chart_data = pd.DataFrame(
+        np.random.randn(20, 3),
+        columns=['Кликбейт-трафик', 'Обучение ДПО', 'Конверсия в Лиды']
+    ).cumsum()
+    st.line_chart(chart_data)
+
+    # Кадровый резерв
+    st.write("---")
+    st.subheader("🎯 Поступившие горячие лиды (Кандидаты)")
     
     for idx, lead in enumerate(db["leads"]):
-        with st.container(border=True):
-            c_info, c_action = st.columns(2)
-            is_unlocked = db["is_premium"] or lead["status"] == "Разблокирован"
-            
-            c_info.write(f"**Обучен по регламенту:** {lead['course']}")
-            c_info.write(f"**ФИО кандидата:** {lead['name'] if is_unlocked else '🔒 Скрыто системой до списания'}")
-            
-            if not is_unlocked:
-                # FIX #2: Защита от отрицательного баланса. Блокируем кнопку, если денег нет
-                has_money = db["balance"] >= 500
-                button_label = "💳 Выкупить контакт (500 р.)" if has_money else "❌ Недостаточно средств"
-                
-                if c_action.button(button_label, key=f"buy_lead_{idx}", use_container_width=True, disabled=not has_money):
-                    db["balance"] -= 500
-                    db["leads"][idx]["status"] = "Разблокирован"
-                    st.rerun()
-            else:
-                c_action.write(f"📞 **{lead['phone']}**")
+        st.markdown(f"""
+        <div class="highlight-box">
+            <h4>{lead['course']}</h4>
+            <p><b>Рейтинг тестирования:</b> {lead['rating']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        c_info, c_act = st.columns([3, 1])
+        is_open = db["is_premium"] or lead["status"] == "Разблокирован"
+        c_info.write(f"**ФИО соискателя:** {lead['name'] if is_open else '🔒 Заблокировано финтех-системой (CPA)'}")
+        
+        if not is_open:
+            has_cash = db["balance"] >= 500
+            btn_name = "💳 Открыть контакт (500 ₽)" if has_cash else "❌ Пополните счет"
+            if c_act.button(btn_name, key=f"b_l_{idx}", use_container_width=True, disabled=not has_cash):
+                db["balance"] -= 500
+                db["leads"][idx]["status"] = "Разблокирован"
+                st.rerun()
+        else:
+            c_act.success(f"📞 {lead['phone']}")
 
 # ==============================================================================
-# ИНТЕРФЕЙС РОЛИ: СОИСКАТЕЛЬ
+# БИЗНЕС-ЛОГИКА: 🎓 ПОРТАЛ УЧЕНИКА
 # ==============================================================================
-elif user_role == "🎓 Гражданин / Соискатель (B2C)":
-    st.header("Федеральный портал бесплатного промышленного ДПО")
-    st.write("Изучите стандарты заводов, сдайте тест и получите мгновенный контракт с работодателем.")
+elif user_role == "🎓 Гражданин / Ученик (B2C)":
+    st.title("🎓 Федеральный образовательный портал ДПО")
+    st.subheader("Бесплатное обучение под стандарты крупнейших производств Санкт-Петербурга")
     
-    # Ключ для фиксации открытого курса, чтобы убрать эффект "мертвой кнопки"
-    active_course_key = f"active_course_{user_role}"
+    # ЖИВАЯ КАРТА (Та самая изюминка)
+    st.write("---")
+    st.subheader("📍 Интерактивная карта распределения учебных центров и заводов АПП")
+    st.caption("Кликните и перемещайте карту, чтобы увидеть доступные промышленные гиганты")
+    
+    # Координаты заводов Санкт-Петербурга для интерактива
+    map_data = pd.DataFrame({
+        'lat': [59.9004, 59.8821, 59.8341],
+        'lon': [30.4322, 30.2743, 30.4912],
+        'name': ['АО "Силовые машины"', 'АО "Кировский завод"', 'Обуховский завод']
+    })
+    st.map(map_data, size=40)
+
+    # Список курсов в виде красивых карточек
+    st.write("---")
+    st.subheader("📋 Доступные программы опережающей подготовки:")
+    
+    active_key = f"active_c_{user_role}"
     
     for c_idx, course in enumerate(db["courses"]):
         with st.container(border=True):
-            st.subheader(f"📚 {course['title']}")
-            st.write(f"🏭 Индустриальный автор технологии: **{course['factory']}**")
+            col_icon, col_txt, col_btn = st.columns([1, 6, 3])
+            col_icon.write(f"# {course['color']}")
+            col_txt.write(f"### {course['title']}")
+            col_txt.write(f"🏭 Индустриальный автор: **{course['factory']}**")
             
-            if st.button("🚀 Начать изучение стандарта и сдать тест", key=f"start_{c_idx}", use_container_width=True):
-                st.session_state[active_course_key] = c_idx
+            if col_btn.button("🚀 Начать бесплатное обучение", key=f"st_c_{c_idx}", use_container_width=True):
+                st.session_state[active_key] = c_idx
                 
-                # Генерируем новый лид в базу данных
+                # Генерируем лид
                 random_digits = "".join([str(random.randint(0, 9)) for _ in range(7)])
-                # Используем нейтральный формат номера, так как 911 — это не везде номер экстренных служб
-                safe_phone = f"+7 (9xx) {random_digits[:3]}-{random_digits[3:5]}-{random_digits[5:]}"
-                
                 db["leads"].append({
-                    "name": f"Верифицированный выпускник №{random.randint(100, 999)}",
-                    "phone": safe_phone,
+                    "name": f"Выпускник академии №{random.randint(100, 999)}",
+                    "phone": f"+7 (931) {random_digits[:3]}-{random_digits[3:5]}-{random_digits[5:]}",
                     "course": course['title'],
-                    "status": "Заморожен"
+                    "status": "Заморожен",
+                    "rating": f"⭐ {random.uniform(4.5, 5.0):.1f}"
                 })
                 st.balloons()
             
-            # FIX #1: Убираем "Мертвую кнопку". Показываем контент и успех сразу после клика
-            if active_course_key in st.session_state and st.session_state[active_course_key] == c_idx:
-                st.success("🎯 Вы успешно зачислены! Ваше цифровое резюме направлено в HR-отдел завода.")
-                with st.expander("📖 ОТКРЫТЫЙ УЧЕБНЫЙ МАТЕРИАЛ И ТЕСТ ПЛАТФОРМЫ", expanded=True):
-                    st.info("Здесь отображается пошаговый регламент работы на станках ЧПУ, чертежи и интерактивное тестирование кандидатов.")
+            if active_key in st.session_state and st.session_state[active_key] == c_idx:
+                st.success("🎯 Доступ к симулятору открыт! Ваше цифровое портфолио формируется в реальном времени.")
+                st.markdown("""
+                <div style="padding:15px; background-color:#ECFDF5; border-left: 5px solid #10B981; border-radius:4px;">
+                    <b>Программа модуля:</b><br>
+                    1. Изучение технического регламента оборудования завода.<br>
+                    2. Интерактивный 3D-тест на знание ЧПУ / Гидравлики.<br>
+                    3. Автоматическая отправка верифицированного резюме в HR-отдел.
+                </div>
+                """, unsafe_allow_html=True)
 
 # ==============================================================================
-# ИНТЕРФЕЙС РОЛИ: МАРКЕТОЛОГ
+# БИЗНЕС-ЛОГИКА: 💥 МАРКЕТОЛОГ (ТИЗЕРНАЯ СЕТЬ)
 # ==============================================================================
 elif user_role == "💥 Маркетолог платформы (Трафик)":
-    st.header("Панель вирусного захвата b2c-трафика")
-    st.write("Управление тизерными сетями для привлечения половины граждан РФ.")
+    st.title("💥 Тизерный хаб вирусного трафика")
+    st.subheader("Механизм сверхдешевого вовлечения граждан Российской Федерации")
     
-    with st.container(border=True):
-        st.error("### 🔥 ШОК-КОНТЕНТ: Самойлова Оксана подала в суд на Жигана из-за...")
-        st.write("...из-за того, что он тайно от неё прошел бесплатное обучение ЧПУ на платформе АПП СПБ и скрыл доходы!")
-        if st.button("СГЕНЕРИРОВАТЬ ВИРУСНУЮ ССЫЛКУ (ПРОКЛАДКУ)", use_container_width=True):
-            st.toast("Тизерная кампания запущена. Ожидайте приток b2c-лидов.")
+    st.write("---")
+    st.subheader("📈 Эффективность кликбейт-кампаний АПП")
+    
+    # Красивая сводная таблица аналитики маркетинга
+    marketing_df = pd.DataFrame(db["courses"])
+    st.dataframe(
+        marketing_df[['title', 'factory', 'clicks', 'leads']],
+        column_config={
+            "title": "Целевой курс ДПО",
+            "factory": "Завод-заказчик",
+            "clicks": st.column_config.ProgressColumn("Общее число кликов по шок-тизерам", format="%d", min_value=0, max_value=3000),
+            "leads": "Сгенерировано горячих лидов"
+        },
+        use_container_width=True
+    )
+    
+    st.write("---")
+    st.subheader("👀 Как это видит обычный гражданин в сети (Пример прокладки):")
+    
+    st.error("### 🔥 ШОК! Самойлова Оксана подала в суд на Жигана из-за...")
+    st.write("...из-за того, что он втайне от неё прошел бесплатное обучение ЧПУ на платформе Ассоциации промышленных предприятий Санкт-Петербурга, устроился на Обуховский завод и скрыл миллионные доходы!")
+    
+    if st.button("🔗 Протестировать захват клика и переход в ДПО", use_container_width=True):
