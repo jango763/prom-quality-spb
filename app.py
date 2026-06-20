@@ -84,13 +84,17 @@ def get_factory_data():
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql_query("SELECT * FROM factories WHERE id='kirov_zavod'", conn)
     conn.close()
-    return df.iloc.to_dict()
+    if not df.empty:
+        return df.loc[0].to_dict()
+    return {"balance": 0.0, "is_premium": 0}
 
 def get_marketing_data():
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql_query("SELECT * FROM marketing_stats WHERE id='global'", conn)
     conn.close()
-    return df.iloc.to_dict()
+    if not df.empty:
+        return df.loc[0].to_dict()
+    return {"clicks": 0, "views": 0}
 
 def add_new_lead_from_student(name, phone, course_title, district, current_status, cnc_tag, cad_tag):
     conn = sqlite3.connect(DB_NAME)
@@ -160,7 +164,7 @@ with k_col4:
     if st.button(f"🤝 Подобрано сотрудников\n\n {int(unlocked_leads_count)} человек", use_container_width=True):
         st.session_state["active_kpi_tab"] = "hired"
 
-# РЕНДЕРИНГ ДИНАМИЧЕСКИХ ДАННЫХ ПРИ КЛИКЕ НА KPI КАРТОЧКИ (ОТСТУПЫ СТРОГО ВЫРОВНЕНЫ)
+# РЕНДЕРИНГ ДИНАМИЧЕСКИХ ДАННЫХ ПРИ КЛИКЕ НА KPI КАРТОЧКИ
 if st.session_state["active_kpi_tab"] == "factories":
     st.info("📊 Распределение индустриальных партнеров АПП по районам Санкт-Петербурга:")
     st.dataframe(factories_data[['name', 'district', 'vacancies_count']], use_container_width=True, hide_index=True)
@@ -182,5 +186,3 @@ st.write("---")
 # ==============================================================================
 # --- ИНТЕРФЕЙС: ЗАВОД (B2B) ---
 # ==============================================================================
-if user_role == "🏢 Для заводов и производств":
-    st.header("🏢 Кабинет отдела кадров предприятия")
