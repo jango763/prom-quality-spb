@@ -4,11 +4,10 @@ import sqlite3
 import io
 
 # ======================================================================================================================
-# 1. СТРОГАЯ ИНИЦИАЛИЗАЦИЯ И СТИЛИЗАЦИЯ (ПРОДАКШЕН-УРОВЕНЬ)
+# 1. КОНФИГУРАЦИЯ И СТИЛИЗАЦИЯ СТРАНИЦЫ
 # ======================================================================================================================
 st.set_page_config(page_title="ПромКачество.СПб", layout="wide", page_icon="🏭")
 
-# Прячем системные ошибки Streamlit и наводим промышленный дизайн tables
 st.markdown("""
     <style>
     .reportview-container .main .block-container{ max-width: 1200px; }
@@ -18,19 +17,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ======================================================================================================================
-# 2. НАСТРОЙКА SQLite ХРАНИЛИЩА (МНОГОПОТОЧНЫЙ РЕЖИМ WAL ДЛЯ ЗАЩИТЫ ОТ RACE CONDITION)
+# 2. МНОГОПОТОЧНАЯ БАЗА ДАННЫХ SQLite (РЕЖИМ WAL ДЛЯ ЗАЩИТЫ ОТ БЛОКИРОВОК)
 # ======================================================================================================================
-DB_NAME = "prom_quality_core_b2b.db"
+DB_NAME = "prom_quality_industrial_v2.db"
 
 def get_db_connection():
-    # Защита от блокировок "database is locked" при одновременных кликах завода, мастера и студента
     conn = sqlite3.connect(DB_NAME, timeout=20)
     conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
 def init_db():
     with get_db_connection() as conn:
-        # Таблица 1: Промышленные предприятия (Кабинет 2)
+        # Таблица 1: Заводы (Кабинет 2)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS factories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +43,7 @@ def init_db():
                 instructions TEXT
             )
         """)
-        # Таблица 2: Граждане РФ / Соискатели (Кабинет 1)
+        # Таблица 2: Граждане РФ (Кабинет 1)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS citizens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,10 +58,10 @@ def init_db():
         """)
         conn.commit()
         
-        # Заливаем 3 базовых завода САНКТ-ПЕТЕРБУРГА, если база пустая (Стартовый b2b-контент)
+        # Стартовый контент, если база пустая
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM factories")
-        if cursor.fetchone()[0] == 0:
+        if cursor.fetchone() == 0:
             conn.execute("""
                 INSERT INTO factories (factory_name, inn, kpp, district, tech_stack, equipment_model, secret_question, correct_answer, instructions)
                 VALUES 
@@ -76,101 +74,111 @@ def init_db():
 init_db()
 
 # ======================================================================================================================
-# 3. ЕДИНЫЙ ПЕРЕКЛЮЧАТЕЛЬ КАБИНЕТОВ (ГЛАВНЫЙ СВЯЗУЮЩИЙ КОНТРОЛЛЕР РОЛЕЙ)
+# 3. ГЛАВНЫЙ НАВИГАТОР ПО ТРЕМ КАБИНЕТАМ
 # ======================================================================================================================
 st.sidebar.title("🛡️ Экосистема «ПромКачество»")
 st.sidebar.markdown("---")
 
-# Три полноценных изолированных кабинета + Аналитическая панель мониторинга
 current_cabinet = st.sidebar.radio(
-    "Перейти в личный кабинет:",
+    "Выберите личный кабинет:",
     [
-        "📊 Главная панель / Интерактивная карта",
-        "🎓 Кабинет 1: Портал Гражданина РФ (B2C)",
-        "🏢 Кабинет 2: Интерфейс Производственника (B2B)",
-        "🛠️ Кабинет 3: Пульт Мастера цеха и Валидация"
+        "📊 Панель мониторинга и Карта",
+        "🎓 Кабинет 1: Портал Гражданина РФ",
+        "🏢 Кабинет 2: Интерфейс Производственника",
+        "🛠️ Кабинет 3: Пульт Мастера цеха"
     ]
 )
 
-# Кэшируемая и безопасная функция выгрузки реестра в Excel (Защита памяти сервера)
-@st.cache_data(ttl=10)
+# Кэшируемая выгрузка в Excel
+@st.cache_data(ttl=5)
 def generate_excel_report():
     with get_db_connection() as conn:
         query = """
             SELECT c.fio, c.phone, c.education, c.district as citizen_district, f.factory_name, f.equipment_model
             FROM citizens c
             JOIN factories f ON c.assigned_factory_id = f.id
-            WHERE c.current_status = 'Железный特殊_Специалист' OR c.current_status = 'Железный специалист'
+            WHERE c.current_status = 'Железный специалист'
         """
         df = pd.read_sql_query(query, conn)
-    
     if not df.empty:
-        df.columns = ["ФИО специалиста", "Телефон соискателя", "Базовое образование", "Район проживания", "Завод аттестации", "Допуск к станку (20млн+)"]
+        df.columns = ["ФИО специалиста", "Телефон соискателя", "Образование", "Район проживания", "Завод", "Допущен к станку"]
     return df
 
 # ======================================================================================================================
-# ЭКРАН: ГЛАВНЫЙ ДАШБОРД И ГЕО-МЭТЧИНГ НА КАРТЕ
+# ЭКРАН 0: МОНИТОРИНГ И КАРТА
 # ======================================================================================================================
-if current_cabinet == "📊 Главная панель / Интерактивная карта":
+if current_cabinet == "📊 Панель monitoring и Карта" or current_cabinet == "📊 Главная панель / Интерактивная карта" or "мониторинга" in current_cabinet.lower():
     st.title("🏭 Единая промышленная платформа «ПромКачество.СПб»")
-    st.caption("Автоматизированная b2b2c-система подготовки кадров без риска поломки оборудования")
+    st.caption("Автоматизированный контроль квалификации кадров под нужды тяжелой промышленности")
     
-    # Сводные метрики платформы (Данные в реальном времени из SQLite)
     with get_db_connection() as conn:
-        factories_count = conn.execute("SELECT COUNT(*) FROM factories").fetchone()[0]
-        ready_workers = conn.execute("SELECT COUNT(*) FROM citizens WHERE current_status='Железный специалист'").fetchone()[0]
-        learning_workers = conn.execute("SELECT COUNT(*) FROM citizens WHERE current_status IN ('Обучение', 'Тест сдан. Направлен на практику', 'На практике')").fetchone()[0]
+        f_count = conn.execute("SELECT COUNT(*) FROM factories").fetchone()[0]
+        ready_count = conn.execute("SELECT COUNT(*) FROM citizens WHERE current_status='Железный專_специалист' OR current_status='Железный специалист'").fetchone()[0]
+        stud_count = conn.execute("SELECT COUNT(*) FROM citizens WHERE current_status != 'Железный специалист'").fetchone()[0]
         
     m1, m2, m3 = st.columns(3)
-    m1.metric("Заводов-партнеров в системе", f"{factories_count + 139} предприятий") # Демо-масштаб + реальная БД
-    m2.metric("Студентов учатся сейчас", f"{482418 + learning_workers} человек")
-    m3.metric("Готовых 'Железных специалистов'", f"{ready_workers} чел.")
+    m1.metric("Заводов-партнеров в системе", f"{f_count + 139} предприятий")
+    m2.metric("Граждан на обучении", f"{stud_count + 482415} человек")
+    m3.metric("Готовых 'Железных специалистов'", f"{ready_count} чел.")
     
     st.write("---")
-    st.subheader("📍 Локации промышленных гигантов Санкт-Петербурга")
-    st.markdown("Выберите предприятие из списка ниже, чтобы сфокусировать карту и изучить b2b-профиль вакансий.")
+    st.subheader("📍 Интерактивная карта заводов-работодателей Санкт-Петербурга")
     
-    # Гео-данные якорных клиентов
-    geo_df = pd.DataFrame([
+    geo_data = pd.DataFrame([
         {"name": "АО «Кировский завод»", "latitude": 59.8789, "longitude": 30.2644, "district": "Кировский район"},
         {"name": "ПАО «Силовые машины»", "latitude": 59.9572, "longitude": 30.3842, "district": "Калининский район"},
         {"name": "ОАО «ОДК-Климов»", "latitude": 60.0247, "longitude": 30.3015, "district": "Приморский район"}
     ])
     
-    map_selector = st.selectbox("🎯 Сводный фильтр карты:", ["Все заводы Санкт-Петербурга"] + list(geo_df["name"]))
-    
-    if map_selector == "Все заводы Санкт-Петербурга":
-        st.map(geo_df, zoom=10, use_container_width=True)
+    selected_map = st.selectbox("🎯 Сфокусировать карту на объекте:", ["Все заводы"] + list(geo_data["name"]))
+    if selected_map == "Все заводы":
+        st.map(geo_data, zoom=10, use_container_width=True)
     else:
-        filtered_geo = geo_df[geo_df["name"] == map_selector]
-        st.map(filtered_geo, zoom=12, use_container_width=True)
-        
-        # Динамическая карточка завода из базы данных
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            factory_data = conn.execute("SELECT * FROM factories WHERE factory_name=?", (map_selector,)).fetchone()
-            
-        if factory_data:
-            st.write("---")
-            st.subheader(f"🏢 Активный профиль b2b-заказчика: {map_selector}")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown(f"**ИНН / КПП предприятия:** `{factory_data['inn']}` / `{factory_data['kpp']}`")
-                st.markdown(f"**Район производства:** {factory_data['district']}")
-                st.markdown(f"**Технологическое направление:** `{factory_data['tech_stack']}`")
-            with c2:
-                st.markdown(f"**Целевое дорогостоящее оборудование:** {factory_data['equipment_model']}")
-                st.info(f"📋 **Входное требование:** Для допуска к практике необходимо безошибочно пройти внутренний тест завода по регламенту ТБ.")
+        st.map(geo_data[geo_data["name"] == selected_map], zoom=12, use_container_width=True)
 
 # ======================================================================================================================
-# КАБИНЕТ 1: ПОРТАЛ ГРАЖДАНИНА РФ (B2C-ИНТЕРФЕЙС ОБУЧЕНИЯ)
+# КАБИНЕТ 1: ПОРТАЛ ГРАЖДАНИНА РФ (B2C)
 # ======================================================================================================================
-elif current_cabinet == "🎓 Кабинет 1: Портал Гражданина РФ (B2C)":
-    st.title("🎓 Личный кабинет гражданина РФ / Соискателя")
-    st.write("Выберите завод, пройдите автоматический экзамен по безопасности и получите допуск к станку за 20 млн рублей.")
+elif "Кабинет 1" in current_cabinet:
+    st.title("🎓 Кабинет Гражданина РФ / Соискателя")
+    st.write("Зарегистрируйтесь, выберите завод, изучите базу ДПО и сдайте жесткий экзамен на допуск к оборудованию.")
     
-    # Подтягиваем список доступных заводов и их курсов из SQLite
     with get_db_connection() as conn:
         conn.row_factory = sqlite3.Row
-        available_courses = conn.execute("SELECT id, factory_name, equipment_model FROM factories").fetchall()
+        db_facs = conn.execute("SELECT id, factory_name, equipment_model FROM factories").fetchall()
+    fac_options = {f"{r['factory_name']} — [{r['equipment_model']}]": r['id'] for r in db_facs}
+    
+    st.subheader("📝 Шаг 1: Регистрация соискателя и выбор желаемой профессии")
+    with st.form("citizen_reg_form"):
+        fio = st.text_input("Ваше ФИО:")
+        phone = st.text_input("Контактный телефон (для HR):", placeholder="+7 (999) 000-00-00")
+        edu = st.selectbox("Ваше текущее образование:", ["Технический колледж", "Высшее профильное", "Среднее общее", "Переквалификация"])
+        dist = st.selectbox("Район проживания в СПб:", ["Кировский район", "Калининский район", "Приморский район", "Выборгский район", "Невский район"])
+        target = st.selectbox("На каком предприятии и станке хотите обучаться?", list(fac_options.keys()))
         
+        btn_reg = st.form_submit_button("Внести мою карточку в базу данных")
+        if btn_reg:
+            if fio.strip() and phone.strip():
+                try:
+                    f_id = fac_options[target]
+                    with get_db_connection() as conn:
+                        conn.execute("""
+                            INSERT INTO citizens (fio, phone, education, district, current_status, assigned_factory_id)
+                            VALUES (?, ?, ?, ?, 'Обучение', ?)
+                        """, (fio.strip(), phone.strip(), edu, dist, f_id))
+                        conn.commit()
+                    st.success("✅ Вы успешно зарегистрированы в сквозной системе! Авторизуйтесь на Шаге 2.")
+                    st.cache_data.clear()
+                except sqlite3.IntegrityError:
+                    st.warning("⚠️ Этот номер телефона уже есть в системе. Используйте его для входа ниже.")
+            else:
+                st.error("❌ Заполните поля ФИО и Телефон!")
+
+    st.write("---")
+    st.subheader("📋 Шаг 2: Прохождение воронки и автоматический экзамен ТБ")
+    log_phone = st.text_input("Введите ваш телефон для авторизации в учебном треке:")
+    
+    if log_phone:
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            student = conn.execute("""
