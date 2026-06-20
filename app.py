@@ -19,7 +19,7 @@ st.markdown("""
 # ======================================================================================================================
 # 2. ОЧИЩЕННОЕ ЕДИНОЕ ХРАНИЛИЩЕ SQLite (ФИКС РАССИНХРОНИЗАЦИИ ДАННЫХ)
 # ======================================================================================================================
-DB_NAME = "industrial_core_production.db"
+DB_NAME = "industrial_core_production_v3.db"
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME, timeout=20)
@@ -28,7 +28,6 @@ def get_db_connection():
 
 def init_db():
     with get_db_connection() as conn:
-        # Таблица заводов
         conn.execute("""
             CREATE TABLE IF NOT EXISTS factories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +42,6 @@ def init_db():
                 instructions TEXT
             )
         """)
-        # Таблица соискателей
         conn.execute("""
             CREATE TABLE IF NOT EXISTS citizens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +56,6 @@ def init_db():
         """)
         conn.commit()
         
-        # Инъекция демо-данных, если база пуста
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM factories")
         if cursor.fetchone() == 0:
@@ -117,7 +114,7 @@ if "Панель Ассоциации" in current_cabinet:
         
     col_m1, col_m2, col_m3 = st.columns(3)
     col_m1.metric("Заводов-партнеров в системе", f"{f_count + 139} предприятий")
-    col_m2.metric("Студентов учится сейчас", f"{stud_count + 482415} человек")
+    col_m2.metric("Студентов учатся сейчас", f"{stud_count + 482415} человек")
     col_m3.metric("Всего готовых специалистов", f"{ready_count} чел.")
     
     st.write("---")
@@ -182,3 +179,5 @@ elif "Кабинет 1" in current_cabinet:
                     st.success("✅ Карточка успешно внесена в общую базу! Авторизуйтесь на Шаге 2 ниже.")
                     st.cache_data.clear()
                 except sqlite3.IntegrityError:
+                    st.warning("⚠️ Этот номер телефона уже есть в системе. Используйте его для входа ниже.")
+            else:
