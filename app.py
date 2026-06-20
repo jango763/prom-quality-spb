@@ -64,47 +64,13 @@ def init_db():
     cursor.execute("DROP TABLE IF EXISTS courses;")
     cursor.execute("DROP TABLE IF EXISTS citizens;")
     
-    cursor.execute("""
-        CREATE TABLE courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            factory_name TEXT,
-            course_title TEXT,
-            equipment_model TEXT,
-            safety_instructions TEXT,
-            district TEXT,
-            tag_cnc INTEGER,
-            tag_robot INTEGER,
-            tag_hydro INTEGER,
-            secret_question TEXT,
-            secret_answer TEXT
-        )
-    """)
+    cursor.execute("CREATE TABLE courses (id INTEGER PRIMARY KEY AUTOINCREMENT, factory_name TEXT, course_title TEXT, equipment_model TEXT, safety_instructions TEXT, district TEXT, tag_cnc INTEGER, tag_robot INTEGER, tag_hydro INTEGER, secret_question TEXT, secret_answer TEXT)")
+    cursor.execute("CREATE TABLE citizens (id INTEGER PRIMARY KEY AUTOINCREMENT, fio TEXT, phone TEXT, district TEXT, current_education TEXT, current_status TEXT, course_id INTEGER, is_contract_signed INTEGER DEFAULT 0, sim_passed INTEGER DEFAULT 0)")
     
-    cursor.execute("""
-        CREATE TABLE citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT,
-            phone TEXT,
-            district TEXT,
-            current_education TEXT,
-            current_status TEXT,
-            course_id INTEGER,
-            is_contract_signed INTEGER DEFAULT 0,
-            sim_passed INTEGER DEFAULT 0
-        )
-    """)
+    cursor.execute("INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1, 'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')")
     
-    cursor.execute("""
-        INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) 
-        VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 
-        'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1,
-        'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')
-    """)
-    
-    cursor.executemany("""
-        INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id, is_contract_signed, sim_passed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, [
-        ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный специалист", 1, 1, 1),
+    cursor.executemany("INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id, is_contract_signed, sim_passed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
+        ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее technical", "Железный специалист", 1, 1, 1),
         ("Смирнов Кирилл Михайлович", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1, 1, 0),
         ("Иванов Игорь Игоревич", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1, 0, 0)
     ])
@@ -139,13 +105,6 @@ with st.sidebar:
     )
     st.write("---")
     st.caption("Ассоциация промышленных предприятий СПб")
-
-st.markdown("""
-    <div class="hero-banner">
-        <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
-        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ</div>
-    </div>
-""", unsafe_allow_html=True)
 
 courses_list = fetch_all_from_db("SELECT * FROM courses")
 citizens_list = fetch_all_from_db("SELECT * FROM citizens")
@@ -201,4 +160,14 @@ if user_role == "🏢 Личный кабинет Производственни
             if st.form_submit_button("Опубликовать комплексные требования завода", use_container_width=True):
                 if c_title.strip() and s_instructions.strip():
                     conn = sqlite3.connect(DB_NAME)
-                    conn.execute("""
+                    conn.execute("INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (f_name, c_title.strip(), e_model.strip(), s_instructions.strip(), factories_static[f_name]['district'], 1 if c_cnc else 0, 1 if c_robot else 0, 1 if c_hydro else 0, sec_q.strip(), sec_a.strip()))
+                    conn.commit()
+                    conn.close()
+                    st.success("Кадровый заказ успешно опубликован!")
+                    st.rerun()
+                else:
+                    st.error("Заполните форму!")
+                    
+    with tab_hr_registry:
+        st.subheader("Реестр соискателей в системе контроля квалификации:")
+        conn = sqlite3.connect(DB_NAME)
