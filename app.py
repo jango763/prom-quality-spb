@@ -1,11 +1,14 @@
 import streamlit as st
 import pandas as pd
+import random
 
-# 1. Главная конфигурация страницы — строго первой строчкой
+# ==============================================================================
+# ARCHITECTURAL RULE #4: Страница конфигурируется строго на первой строчке кода
+# ==============================================================================
 st.set_page_config(page_title="ПромКачество.СПб", layout="wide", page_icon="🏭")
 
 # ==============================================================================
-# 2. ЕДИНЫЙ ИЗОЛИРОВАННЫЙ STATE ПЛАТФОРМЫ (Порядок в оперативной памяти сессии)
+# ARCHITECTURAL RULE #1 & #5: Группировка State и защита от мутации ссылок
 # ==============================================================================
 if "app_platform" not in st.session_state:
     st.session_state["app_platform"] = {
@@ -17,116 +20,105 @@ if "app_platform" not in st.session_state:
         ],
         "leads": [
             {"name": "Иванов Иван Игоревич (СПбПУ)", "phone": "+7 (999) 111-22-33", "course": "Работа на токарных станках ЧПУ серии ИТ-42", "status": "Заморожен"},
-            {"name": "Петров Петр Георгиевич (ИТМО)", "phone": "+7 (999) 444-55-66", "course": "Стандартизация промышленной гидравлики", "status": "Заморожен"}
+            {"name": "Петров Пётр Георгиевич (ИТМО)", "phone": "+7 (999) 444-55-66", "course": "Стандартизация промышленной гидравлики", "status": "Заморожен"}
         ]
     }
 
-# Извлекаем данные для удобного использования в коде
-platform_data = st.session_state["app_platform"]
-
 # ==============================================================================
-# 3. ГЛАВНЫЙ ИНТЕРФЕЙС ПЛАТФОРМЫ
+# ARCHITECTURAL RULE #4: Разделение монолита на изолированные бизнес-модули
 # ==============================================================================
-st.title("🏭 Цифровая экосистема «ПромКачество.СПб»")
-st.caption("Официальная b2b/b2c-платформа Ассоциации промышленных производств Санкт-Петербурга")
 
-# Разделение платформы на три ключевых рабочих пространства (без сайдбара)
-tab_factory, tab_student, tab_marketing = st.tabs([
-    "🏢 Кабинет Промышленного Предприятия (Завод)", 
-    "🎓 Федеральный Портал ДПО (Гражданин)", 
-    "💥 Инструмент Вирусного Трафика (Тизерная Сеть)"
-])
-
-# ------------------------------------------------------------------------------
-# СЕКЦИЯ 1: КАБИНЕТ ЗАВОДА (Финтех и Управление Лидами)
-# ------------------------------------------------------------------------------
-with tab_factory:
+def render_factory_cabinet():
+    """Модуль 1: Личный кабинет Промышленного Предприятия"""
     st.header("Управление b2b-бюджетом и кадровым резервом")
     
-    # Метрики коммерческой модели
     col_bal, col_tariff = st.columns(2)
-    col_bal.metric(label="Баланс расчетного счета предприятия (CPA)", value=f"{platform_data['balance']:,.2f} руб.")
+    col_bal.metric(label="Баланс расчетного счета предприятия (CPA)", value=f"{st.session_state['app_platform']['balance']:,.2f} руб.")
     
-    tariff_status = "⚡ БЕЗЛИМИТНЫЙ ПАКЕТ ТРАФИКА" if platform_data["is_premium"] else "🪙 ПОШТУЧНАЯ ОПЛАТА (500р / готовый лид)"
+    tariff_status = "⚡ БЕЗЛИМИТНЫЙ ПАКЕТ ТРАФИКА" if st.session_state["app_platform"]["is_premium"] else "🪙 ПОШТУЧНАЯ ОПЛАТА (500р / готовый лид)"
     col_tariff.metric(label="Текущий B2B-тариф", value=tariff_status)
     
-    # Кнопка перехода с CPA на Полный Пакет (Подписку)
-    if not platform_data["is_premium"]:
+    if not st.session_state["app_platform"]["is_premium"]:
         if st.button("🔌 Активировать полный годовой безлимит", use_container_width=True):
-            platform_data["is_premium"] = True
+            st.session_state["app_platform"]["is_premium"] = True
             st.success("Вы успешно перешли на тариф 'Безлимитный пакет'. Все контакты открыты!")
             st.rerun()
             
     st.write("---")
     st.subheader("📥 Загрузка новой методики / курса ДПО")
+    
     with st.form("add_course_form"):
         new_title = st.text_input("Название инструкции или стандарта для вывода на рынок:")
         new_factory = st.text_input("Название вашего ведомства/завода:", value="АО 'Кировский завод'")
+        
         if st.form_submit_button("Опубликовать методику для граждан РФ", use_container_width=True):
-            if new_title.strip():
-                platform_data["courses"].append({"title": new_title, "factory": new_factory})
+            # FIX #3: Строгая валидация ОБОИХ полей формы на пустые строки
+            if new_title.strip() and new_factory.strip():
+                st.session_state["app_platform"]["courses"].append({
+                    "title": new_title.strip(), 
+                    "factory": new_factory.strip()
+                })
                 st.success(f"Методика '{new_title}' успешно выведена в федеральный каталог!")
                 st.rerun()
             else:
-                st.error("Укажите название курса.")
+                st.error("Критическая ошибка: Все поля формы обязательны к заполнению!")
 
     st.write("---")
     st.subheader("🎯 Поступившие соискатели, обученные по вашим стандартам")
     st.info("Модель 'Итальянских поваров': эти люди умеют работать только на вашем оборудовании.")
     
-    for idx, lead in enumerate(platform_data["leads"]):
+    for idx, lead in enumerate(st.session_state["app_platform"]["leads"]):
         with st.container(border=True):
-            c_info, c_action = st.columns([3, 1])
-            is_unlocked = platform_data["is_premium"] or lead["status"] == "Разблокирован"
+            c_info, c_action = st.columns()
+            is_unlocked = st.session_state["app_platform"]["is_premium"] or lead["status"] == "Разблокирован"
             
             c_info.write(f"**Пройденный курс:** {lead['course']}")
             c_info.write(f"**ФИО специалиста:** {lead['name'] if is_unlocked else '🔒 Скрыто (Требуется выкуп лида)'}")
             
             if not is_unlocked:
                 if c_action.button("💳 Открыть контакт (500 р.)", key=f"buy_lead_{idx}", use_container_width=True):
-                    if platform_data["balance"] >= 500:
-                        platform_data["balance"] -= 500
-                        lead["status"] = "Разблокирован"
-                        st.success("Контакт разблокирован!")
+                    # FIX #1: Модификация состояния идет строго напрямую в сессию без посредников
+                    if st.session_state["app_platform"]["balance"] >= 500:
+                        st.session_state["app_platform"]["balance"] -= 500
+                        st.session_state["app_platform"]["leads"][idx]["status"] = "Разблокирован"
                         st.rerun()
                     else:
-                        st.error("Недостаточно средств на балансе CPA. Пополните счет или перейдите на Безлимит.")
+                        st.error("Недостаточно средств на балансе CPA. Пополните счет.")
             else:
                 c_action.write(f"📞 **{lead['phone']}**")
 
-# ------------------------------------------------------------------------------
-# СЕКЦИЯ 2: ПОРТАЛ ДПО (Обучение Граждан)
-# ------------------------------------------------------------------------------
-with tab_student:
+
+def render_student_portal():
+    """Модуль 2: Федеральный Портал ДПО для Граждан"""
     st.header("Бесплатное профессиональное обучение и быстрый старт в ОПК")
     st.write("Выберите сертифицированную методику завода, пройдите интерактивный тест и получите гарантированный контракт.")
     
-    for c_idx, course in enumerate(platform_data["courses"]):
+    for c_idx, course in enumerate(st.session_state["app_platform"]["courses"]):
         with st.container(border=True):
             st.subheader(f"📚 {course['title']}")
             st.write(f"🏭 Разработчик стандарта и оборудования: **{course['factory']}**")
             
             if st.button("🚀 Начать изучение курса и сдать тест", key=f"start_course_{c_idx}"):
-                # Генерируем новый реальный лид в систему
-                new_student_name = "Новый верифицированный выпускник"
-                random_phone = f"+7 (911) {str(pd.Timestamp.now().microsecond)[:7]}"
+                # FIX #2: Замена ломающихся микросекунд на безопасный генератор случайного номера телефона
+                random_digits = "".join([str(random.randint(0, 9)) for _ in range(7)])
+                safe_phone = f"+7 (911) {random_digits[:3]}-{random_digits[3:5]}-{random_digits[5:]}"
                 
-                platform_data["leads"].append({
-                    "name": f"{new_student_name} №{c_idx+1}",
-                    "phone": random_phone,
+                # FIX #1: Прямая запись нового лида в сессию для предотвращения сброса UI
+                st.session_state["app_platform"]["leads"].append({
+                    "name": f"Новый верифицированный выпускник №{random.randint(100, 999)}",
+                    "phone": safe_phone,
                     "course": course['title'],
                     "status": "Заморожен"
                 })
                 st.balloons()
-                st.success("Поздравляем! Вы успешно изучили методику. Ваша анкета передана в HR-департамент завода.")
+                st.success("Поздравляем! Вы успешно изучили методику. Ваша анкета передана на завод.")
                 st.rerun()
 
-# ------------------------------------------------------------------------------
-# СЕКЦИЯ 3: ТИЗЕРНАЯ СЕТЬ (Вирусный Кликбейт)
-# ------------------------------------------------------------------------------
-with tab_marketing:
+
+def render_marketing_tool():
+    """Модуль 3: Инструмент Вирусного Трафика"""
     st.header("Инструмент захвата внимания половины граждан РФ")
-    st.write("Генератор шок-контента для агрессивного привлечения бесплатного b2c-трафика на платформу.")
+    st.write("Генератор шок-контента для агрессивного привлечения бесплатного b2c-трафика.")
     
     with st.container(border=True):
         st.error("### 🔥 ШОК! Самойлова Оксана подала в суд на Жигана из-за...")
@@ -134,3 +126,25 @@ with tab_marketing:
         st.write("👇 👇 👇")
         if st.button("УЗНАТЬ ПОДРОБНОСТИ И ЗАРЕГИСТРИРОВАТЬСЯ БЕСПЛАТНО", use_container_width=True):
             st.toast("Клик засчитан! Пользователь перенаправлен на вкладку обучения.")
+
+# ==============================================================================
+# ТОЧКА ВХОДА (MAIN RUNNER)
+# ==============================================================================
+st.title("🏭 Цифровая экосистема «ПромКачество.СПб»")
+st.caption("Официальная b2b/b2c-платформа Ассоциации промышленных производств Санкт-Петербурга")
+
+# Рендеринг вкладок верхнего уровня через модульные функции
+tab_factory, tab_student, tab_marketing = st.tabs([
+    "🏢 Кабинет Промышленного Предприятия (Завод)", 
+    "🎓 Портал ДПО (Гражданин)", 
+    "💥 Вирусный Трафик (Тизерная Сеть)"
+])
+
+with tab_factory:
+    render_factory_cabinet()
+
+with tab_student:
+    render_student_portal()
+
+with tab_marketing:
+    render_marketing_tool()
