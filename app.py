@@ -1,201 +1,205 @@
 import streamlit as st
 import pandas as pd
+import random
 import sqlite3
-import io
+import numpy as np
 
 # ==============================================================================
-# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТРОГИЙ B2B-ДИЗАЙН
+# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТИЛИ
 # ==============================================================================
-st.set_page_config(page_title="ПромКачество.СПб | Контур Квалификации", layout="wide", page_icon="🏭")
+st.set_page_config(page_title="ПромКачество.СПб | Экосистема", layout="wide", page_icon="🏭")
 
 st.markdown("""
     <style>
-        .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #334155; }
-        div[data-testid="stMetricValue"] { font-size: 32px; font-weight: 800; color: #10B981; }
-        .hero-banner { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); padding: 35px; border-radius: 12px; color: #FFFFFF; margin-bottom: 25px; border-left: 8px solid #10B981; }
-        .hero-title { font-size: 32px; font-weight: 800; }
-        .hero-subtitle { font-size: 15px; color: #94A3B8; }
-        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 700; color: white; }
-        .status-ready { background-color: #10B981; }
-        .status-process { background-color: #3B82F6; }
-        .status-warning { background-color: #F59E0B; }
-        .status-danger { background-color: #EF4444; }
-        .matching-box { padding: 15px; border-radius: 8px; background-color: #ECFDF5; border-left: 5px solid #10B981; color: #065F46; font-weight: 600; margin-bottom: 15px; }
-        .tag-pill { display: inline-block; background-color: #DBEAFE; color: #1E4ED8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 5px; }
+        .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #4A5568; }
+        div[data-testid="stMetricValue"] { font-size: 32px; font-weight: 800; color: #0284C7; }
+        .highlight-box { padding: 20px; border-radius: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; margin-bottom: 15px; }
+        .hero-banner { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); padding: 40px; border-radius: 16px; color: #FFFFFF; margin-bottom: 30px; border-left: 8px solid #0284C7; }
+        .hero-title { font-size: 34px; font-weight: 800; color: #FFFFFF; margin-bottom: 5px; }
+        .hero-subtitle { font-size: 16px; color: #94A3B8; }
+        .marketing-card { padding: 15px; background-color: #FFFBEB; border-left: 5px solid #F59E0B; border-radius: 4px; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
-DB_NAME = "production_control.db"
+# ==============================================================================
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (Общая база SQLite)
+# ==============================================================================
+DB_NAME = "platform.db"
 
-# ==============================================================================
-# 2. СЛОЙ ДАННЫХ (SQLite Схема — Связи по ИНН завода и ID соискателя)
-# ==============================================================================
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL;")
+    cursor.execute("CREATE TABLE IF NOT EXISTS factories (id TEXT PRIMARY KEY, balance REAL, is_premium INTEGER)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS courses (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, factory TEXT, clicks INTEGER, leads INTEGER, color TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS leads (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, status TEXT, rating TEXT)")
     
-    # Принудительный сброс старых конфликтных таблиц
-    cursor.execute("DROP TABLE IF EXISTS courses;")
-    cursor.execute("DROP TABLE IF EXISTS citizens;")
-    cursor.execute("DROP TABLE IF EXISTS test_attempts;")
-    
-    # Схема курсов ДПО
-    cursor.execute("""
-        CREATE TABLE courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            factory_name TEXT,
-            course_title TEXT,
-            equipment_model TEXT,
-            safety_instructions TEXT,
-            district TEXT,
-            tag_cnc INTEGER,
-            tag_robot INTEGER,
-            tag_hydro INTEGER,
-            secret_question TEXT,
-            secret_answer TEXT
-        )
-    """)
-    
-    # Схема соискателей
-    cursor.execute("""
-        CREATE TABLE citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT,
-            phone TEXT,
-            district TEXT,
-            current_education TEXT,
-            current_status TEXT,
-            course_id INTEGER
-        )
-    """)
-    
-    # Таблица попыток тестов
-    cursor.execute("""
-        CREATE TABLE test_attempts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            citizen_id INTEGER,
-            course_id INTEGER,
-            score INTEGER,
-            is_passed TEXT
-        )
-    """)
-    
-    # Первичное наполнение базы под Демо-день
-    cursor.execute("""
-        INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) 
-        VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 
-        'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1,
-        'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')
-    """)
-    
-    cursor.execute("""
-        INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) 
-        VALUES ('ПАО «Силовые машины» (ЛМЗ)', 'Допуск к измерительному оборудованию хаба', 'ЛМЗ-Гидро-2026', 
-        'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Убедиться в отсутствии посторонних предметов в камере рабочего колеса.\n2. Использовать динамометрический инструмент.\n3. Запрещено проводить работы без заземления станины.', 'Калининский район', 1, 1, 0,
-        'Какое действие необходимо совершить перед запуском гидротурбины?', 'Проверить заземление станины')
-    """)
-    
-    # Исправленные 6 знаков вопроса под 6 элементов кортежей
-    cursor.executemany("""
-        INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id) VALUES (?, ?, ?, ?, ?, ?)
-    """, [
-        ("Никифоров Артур Владимирович (Выпускник СПбПУ)", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный专员", 1),
-        ("Смирнов Кирилл Михайлович (Соискатель)", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1),
-        ("Иванов Игорь Игоревич (Ученик)", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1)
-    ])
-    cursor.execute("UPDATE citizens SET current_status = 'Железный специалист' WHERE id = 1")
-    cursor.execute("INSERT INTO test_attempts (citizen_id, course_id, score, is_passed) VALUES (1, 1, 3, 'True')")
-    cursor.execute("INSERT INTO test_attempts (citizen_id, course_id, score, is_passed) VALUES (2, 2, 3, 'True')")
-    
+    cursor.execute("SELECT COUNT(*) FROM factories")
+    if cursor.fetchone() == 0:
+        cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 1500.0, 0)")
+        cursor.executemany("INSERT INTO courses (title, factory, clicks, leads, color) VALUES (?, ?, ?, ?, ?)", [
+            ("Отказоустойчивость гидравлических систем", "АО 'Силовые машины'", 1420, 84, "🔵"),
+            ("Программирование ЧПУ циклов серии ИТ-42", "АО 'Кировский завод'", 2850, 196, "⚙️"),
+            ("Метрология и лазерный контроль геометрии", "Обуховский завод", 930, 41, "🔬")
+        ])
+        cursor.executemany("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, ?, ?)", [
+            ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Программирование ЧПУ циклов серии ИТ-42", "Заморожен", "⭐ 4.9"),
+            ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Отказоустойчивость гидравлических систем", "Заморожен", "⭐ 4.7")
+        ])
     conn.commit()
     conn.close()
 
 init_db()
 
-factories_static = {
-    "АО «Кировский завод»": {"inn": "7805041230", "district": "Кировский район"},
-    "ПАО «Силовые машины» (ЛМЗ)": {"inn": "7804014560", "district": "Калининский район"},
-    "ОАО «ОДК-Климов»": {"inn": "7814039910", "district": "Приморский район"}
-}
+# Контроллеры b2b-логики
+def get_factory_data():
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        df = pd.read_sql_query("SELECT * FROM factories WHERE id='kirov_zavod'", conn)
+        conn.close()
+        return (True, df.iloc.to_dict()) if not df.empty else (False, "Завод не найден")
+    except Exception as e:
+        return False, str(e)
+
+def update_factory_balance(amount):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE factories SET balance = balance + ? WHERE id='kirov_zavod'", (amount,))
+        conn.commit()
+        conn.close()
+        return True, "Баланс успешно пополнен"
+    except Exception as e:
+        return False, str(e)
+
+def buy_lead_transaction(lead_id):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT balance, is_premium FROM factories WHERE id='kirov_zavod'")
+        res = cursor.fetchone()
+        if not res:
+            conn.close()
+            return False, "Завод не найден"
+        balance, is_premium = res
+        if is_premium == 0 and balance < 500:
+            conn.close()
+            return False, "Недостаточно средств"
+        if is_premium == 0:
+            cursor.execute("UPDATE factories SET balance = balance - 500 WHERE id='kirov_zavod'")
+        cursor.execute("UPDATE leads SET status = 'Разблокирован' WHERE id = ?", (lead_id,))
+        conn.commit()
+        conn.close()
+        return True, "Успешно"
+    except Exception as e:
+        return False, str(e)
+
+def simulate_marketing_traffic(course_title, added_clicks):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE courses SET clicks = clicks + ? WHERE title = ?", (added_clicks, course_title))
+        conn.commit()
+        conn.close()
+        return True, "Успешно"
+    except Exception as e:
+        return False, str(e)
+
+def add_new_lead_from_student(course_title):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        random_digits = "".join([str(random.randint(0, 9)) for _ in range(7)])
+        safe_phone = f"+7 (931) {random_digits[:3]}-{random_digits[3:5]}-{random_digits[5:]}"
+        cursor.execute("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, 'Заморожен', ?)",
+                       (f"Выпускник академии №{random.randint(100, 999)}", safe_phone, course_title, f"⭐ {random.uniform(4.5, 5.0):.1f}"))
+        cursor.execute("UPDATE courses SET leads = leads + 1 WHERE title = ?", (course_title,))
+        conn.commit()
+        conn.close()
+        return True, "Успешно"
+    except Exception as e:
+        return False, str(e)
 
 # ==============================================================================
-# 3. СЛОЙ ЖЕЛЕЗНОЙ БИЗНЕС-ЛОГИКИ (Контроллеры)
+# 3. НАВИГАЦИЯ И ДОСТУП
 # ==============================================================================
-def add_dpo_course(factory, title, equipment, text, cnc, robot, hydro, q, a):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (factory, title, equipment, text, factories_static[factory]['district'], cnc, robot, hydro, q, a))
-    conn.commit()
-    conn.close()
+if "active_course_id" not in st.session_state:
+    st.session_state["active_course_id"] = None
 
-def submit_custom_exam_results(citizen_id, course_id, user_answer_text, correct_answer_text):
-    cleaned_user = str(user_answer_text).strip().lower()
-    cleaned_correct = str(correct_answer_text).strip().lower()
-    is_ok = (cleaned_user == cleaned_correct)
-    new_status = "Тест сдан. Направлен на практику" if is_ok else "Обучение"
-    
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE citizens SET current_status = ?, course_id = ? WHERE id = ?", (new_status, course_id, citizen_id))
-    cursor.execute("INSERT INTO test_attempts (citizen_id, course_id, score, is_passed) VALUES (?, ?, ?, ?)", 
-                   (citizen_id, course_id, 3 if is_ok else 0, "True" if is_ok else "False"))
-    conn.commit()
-    conn.close()
-    return is_ok
-
-def enroll_to_practice(citizen_id):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE citizens SET current_status = 'Направлен на практику' WHERE id = ?", (citizen_id,))
-    conn.commit()
-    conn.close()
-
-def approve_practice_specialist(citizen_id):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE citizens SET current_status = 'Железный специалист' WHERE id = ?", (citizen_id,))
-    conn.commit()
-    conn.close()
-
-@st.cache_data(ttl=60)
-def generate_hr_excel_report():
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("""
-        SELECT c.fio as 'ФИО проверенного мастера', c.phone as 'Телефон', c.current_education as 'Образование',
-               crs.equipment_model as 'Аттестованный станок', crs.factory_name as 'Завод-заказчик'
-        FROM citizens c
-        JOIN courses crs ON c.course_id = crs.id
-        WHERE c.current_status = 'Железный специалист'
-    """, conn)
-    conn.close()
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False)
-    return output.getvalue()
-
-# ==============================================================================
-# 4. НАВИГАЦИЯ И ИНТЕРФЕЙС (views.py — Три автономных кабинета)
-# ==============================================================================
 with st.sidebar:
-    st.title("🔒 Контур Допусков АПП")
+    st.title("Вход в систему")
     user_role = st.selectbox(
-        "Выберите личный кабинет:",
-        ["🏢 Личный кабинет Производственника", "🎓 Портал Гражданина РФ", "🛠️ Наш кабинет АПП (Управление экосистемой)"]
+        "Выберите ваш личный кабинет:",
+        ["🏢 Для заводов и производств", "🎓 Для студентов и соискателей", "💥 Для маркетологов платформы"]
     )
     st.write("---")
-    st.caption("Ассоциация промышленных предприятий СПб")
+    st.caption("Ассоциация промышленных предприятий Санкт-Петербурга")
+
+# Парадный индустриальный баннер АПП СПБ
+st.markdown("""
+    <div class="hero-banner">
+        <div class="hero-title">🏭 Единая промышленная платформа «ПромКачество»</div>
+        <div class="hero-subtitle">Система быстрого обучения кадров под нужды заводов Санкт-Петербурга</div>
+    </div>
+""", unsafe_allow_html=True)
 
 # Живые b2b-метрики из базы данных
 conn = sqlite3.connect(DB_NAME)
-total_courses = conn.execute("SELECT COUNT(*) FROM courses").fetchone()[0]
-total_citizens = conn.execute("SELECT COUNT(*) FROM citizens").fetchone()[0]
-ready_specialists = conn.execute("SELECT COUNT(*) FROM citizens WHERE current_status='Железный специалист'").fetchone()[0]
+total_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads", conn).loc[0, 'cnt']
+unlocked_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads WHERE status='Разблокирован'", conn).loc[0, 'cnt']
 conn.close()
 
-kpi1, kpi2, kpi3 = st.columns(3)
-kpi1.metric(label="Развернутых b2b-курсов", value=f"{total_courses} моделей")
-kpi2.metric(label="Граждан в системе ДПО", value=f"{total_citizens} соискателей")
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+kpi1.metric(label="Заводов-партнеров в системе", value="142 предприятия")
+kpi2.metric(label="Студентов учатся сейчас", value="482,900 человек")
+kpi3.metric(label="Всего подготовлено выпускников", value=f"{int(total_leads_count)} человек")
+kpi4.metric(label="Подобрано сотрудников на заводы", value=f"{int(unlocked_leads_count)} человек")
+st.write("---")
+
+# ==============================================================================
+# 4. ОТРИСОВКА ИНТЕРФЕЙСОВ РОЛЕЙ
+# ==============================================================================
+
+# --- ИНТЕРФЕЙС: ЗАВОД ---
+if user_role == "🏢 Для заводов и производств":
+    st.header("🏢 Кабинет отдела кадров предприятия")
+    st.write("Здесь вы управляете бюджетом на подбор персонала и видите анкеты людей, которые обучились по вашим инструкциям.")
+    
+    success, factory = get_factory_data()
+    if success:
+        c1, c2, c3 = st.columns(3)
+        c1.metric(label="Ваш остаток на счете подбора", value=f"{factory['balance']:,.2f} ₽")
+        tariff_txt = "БЕЗЛИМИТНЫЙ ГОДОВОЙ НАЙМ" if factory["is_premium"] == 1 else "🪙 Поштучный подбор (500₽ / анкета)"
+        c2.metric(label="Ваш текущий тариф", value=tariff_txt)
+        
+        conn = sqlite3.connect(DB_NAME)
+        leads_df = pd.read_sql_query("SELECT * FROM leads", conn)
+        conn.close()
+        c3.metric(label="Готовых кандидатов в базе", value=len(leads_df))
+
+        # ЖИВОЙ ПУЛЬТ УПРАВЛЕНИЯ БЮДЖЕТОМ (ТО, ЧЕГО НЕ ХВАТАЛО)
+        st.write("---")
+        st.subheader("⚙️ Панель управления b2b-бюджетом завода")
+        
+        col_pay, col_tariff = st.columns(2)
+        
+        with col_pay:
+            st.markdown("**💰 Имитация пополнения счета подбора:**")
+            deposit_amount = st.number_input("Введите сумму пополнения (₽):", min_value=1000, max_value=500000, value=10000, step=5000)
+            if st.button("💳 Внести средства на баланс", use_container_width=True):
+                succ, msg = update_factory_balance(deposit_amount)
+                if succ:
+                    st.toast(f"Баланс завода успешно пополнен на {deposit_amount} ₽!")
+                    st.rerun()
+                    
+        with col_tariff:
+            st.markdown("**🔌 Смена коммерческого тарифа:**")
+            st.write("Вы можете выкупать анкеты поштучно по 500 рублей или один раз активировать годовой безлимитный пакет.")
+            if factory["is_premium"] == 0:
+                # Фиксированная стоимость безлимита на год — 100 000 рублей
+                if st.button("🚀 Активировать годовой БЕЗЛИМИТ", use_container_width=True, type="primary"):
+                    conn = sqlite3.connect(DB_NAME)
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE factories SET is_premium = 1 WHERE id='kirov_zavod'")
+                    conn.commit()
+                    conn.close()
+                    st.toast("Поздравляем! Годовой безлимитный найм активирован.")
