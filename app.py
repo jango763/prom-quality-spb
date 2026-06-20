@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
-import random
 import sqlite3
 import io
-import html
 
 # ==============================================================================
 # 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И УТВЕРЖДЕННЫЕ СТИЛИ (Дизайн без изменений)
@@ -25,6 +23,7 @@ st.markdown("""
         .matching-box { padding: 15px; border-radius: 8px; background-color: #ECFDF5; border-left: 5px solid #10B981; color: #065F46; font-weight: 600; margin-bottom: 15px; }
         .tag-pill { display: inline-block; background-color: #DBEAFE; color: #1E4ED8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 5px; }
         
+        /* Красивое b2b-выравнивание счетчика готовых кандидатов правее */
         .metric-right-container {
             padding-left: 40px;
             border-left: 4px solid #E2E8F0;
@@ -46,9 +45,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (Новая v2 база данных для защиты от KeyError)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite в режиме WAL — Жесткая очистка структуры)
 # ==============================================================================
-DB_NAME = "production_control_v2.db"
+DB_NAME = "production_control.db"
 
 def dict_factory(cursor, row):
     d = {}
@@ -61,18 +60,53 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute("PRAGMA journal_mode=WAL;")
     
-    cursor.execute("CREATE TABLE IF NOT EXISTS courses (id INTEGER PRIMARY KEY AUTOINCREMENT, factory_name TEXT, course_title TEXT, equipment_model TEXT, safety_instructions TEXT, district TEXT, tag_cnc INTEGER, tag_robot INTEGER, tag_hydro INTEGER, secret_question TEXT, secret_answer TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS citizens (id INTEGER PRIMARY KEY AUTOINCREMENT, fio TEXT, phone TEXT, district TEXT, current_education TEXT, current_status TEXT, course_id INTEGER, is_contract_signed INTEGER DEFAULT 0, sim_passed INTEGER DEFAULT 0)")
+    cursor.execute("DROP TABLE IF EXISTS courses;")
+    cursor.execute("DROP TABLE IF EXISTS citizens;")
     
-    cursor.execute("SELECT COUNT(*) FROM courses")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1, 'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')")
-        
-        cursor.executemany("INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id, is_contract_signed, sim_passed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
-            ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный специалист", 1, 1, 1),
-            ("Смирнов Кирилл Михайлович", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1, 1, 0),
-            ("Иванов Игорь Игоревич", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1, 0, 0)
-        ])
+    cursor.execute("""
+        CREATE TABLE courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            factory_name TEXT,
+            course_title TEXT,
+            equipment_model TEXT,
+            safety_instructions TEXT,
+            district TEXT,
+            tag_cnc INTEGER,
+            tag_robot INTEGER,
+            tag_hydro INTEGER,
+            secret_question TEXT,
+            secret_answer TEXT
+        )
+    """)
+    
+    cursor.execute("""
+        CREATE TABLE citizens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fio TEXT,
+            phone TEXT,
+            district TEXT,
+            current_education TEXT,
+            current_status TEXT,
+            course_id INTEGER,
+            is_contract_signed INTEGER DEFAULT 0,
+            sim_passed INTEGER DEFAULT 0
+        )
+    """)
+    
+    cursor.execute("""
+        INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) 
+        VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 
+        'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1,
+        'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')
+    """)
+    
+    cursor.executemany("""
+        INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id, is_contract_signed, sim_passed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, [
+        ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный специалист", 1, 1, 1),
+        ("Смирнов Кирилл Михайлович", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1, 1, 0),
+        ("Иванов Игорь Игоревич", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1, 0, 0)
+    ])
     conn.commit()
     conn.close()
 
@@ -94,7 +128,7 @@ def fetch_all_from_db(query, params=()):
     return res
 
 # ==============================================================================
-# 3. НАВИГАЦИЯ (САЙДБАР)
+# 3. НАВИГАЦИЯ (САЙДБАР С ЖЕСТКИМ ХРАНЕНИЕМ СЕССИИ УЧЕНИКА)
 # ==============================================================================
 with st.sidebar:
     st.title("🔒 Контур Допусков АПП")
@@ -103,7 +137,24 @@ with st.sidebar:
         ["🏢 Личный кабинет Производственника", "🎓 Портал Гражданина РФ", "🛠️ Наш кабинет АПП (Управление экосистемой)"]
     )
     st.write("---")
-    st.caption("Ассоциация промышленных предприятий СПб")
+    
+    # Извлекаем список граждан из БД для безопасного управления сессией без падений
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = dict_factory
+    citizens_session_list = conn.execute("SELECT id, fio, current_status FROM citizens").fetchall()
+    conn.close()
+    
+    st.caption("👤 Сеанс авторизованного соискателя:")
+    user_map = {f"{c['fio']} [{c['current_status']}]": c['id'] for c in citizens_session_list}
+    selected_user_label = st.selectbox("Активный профиль в системе:", list(user_map.keys()))
+    active_student_id = user_map[selected_user_label]
+
+st.markdown("""
+    <div class="hero-banner">
+        <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
+        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ</div>
+    </div>
+""", unsafe_allow_html=True)
 
 courses_list = fetch_all_from_db("SELECT * FROM courses")
 citizens_list = fetch_all_from_db("SELECT * FROM citizens")
@@ -111,7 +162,7 @@ citizens_list = fetch_all_from_db("SELECT * FROM citizens")
 kpi1, kpi2, kpi3 = st.columns(3)
 kpi1.metric(label="Развернутых b2b-курсов", value=f"{len(courses_list)} моделей")
 kpi2.metric(label="Граждан в системе ДПО", value=f"{len(citizens_list)} соискателей")
-ready_cnt = sum(1 for c in citizens_list if c.get('current_status') == 'Железный специалист')
+ready_cnt = sum(1 for c in citizens_list if c.get('current_status') == 'Железный專员' or c.get('current_status') == 'Железный специалист')
 kpi3.metric(label="Верифицировано «Железных специалистов»", value=f"{ready_cnt} мастеров")
 st.write("---")
 
@@ -152,20 +203,3 @@ if user_role == "🏢 Личный кабинет Производственни
             c_robot = st.checkbox("Робототехника / Автоматизация цеха")
             c_hydro = st.checkbox("Промышленная гидравлика и тяжелые прессы")
             
-            s_instructions = st.text_area("Развернутый текст регламента безопасности и эксплуатации станка:")
-            sec_q = st.text_input("Сконструируйте кастомный секретный вопрос по ТБ:", value="Какое давление в гидросистеме является критическим для пресса?")
-            sec_a = st.text_input("Внесите эталонный правильный ответ:", value="Выше 5 МПа")
-            
-            if st.form_submit_button("Опубликовать комплексные требования завода", use_container_width=True):
-                if c_title.strip() and s_instructions.strip():
-                    conn = sqlite3.connect(DB_NAME)
-                    conn.execute("INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (f_name, c_title.strip(), e_model.strip(), s_instructions.strip(), factories_static[f_name]['district'], 1 if c_cnc else 0, 1 if c_robot else 0, 1 if c_hydro else 0, sec_q.strip(), sec_a.strip()))
-                    conn.commit()
-                    conn.close()
-                    st.success("Кадровый заказ успешно опубликован!")
-                    st.rerun()
-                else:
-                    st.error("Заполните форму!")
-                    
-    with tab_hr_registry:
-        st.subheader("Реестр соискателей в системе контроля квалификации:")
