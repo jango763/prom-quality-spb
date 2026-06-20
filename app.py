@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import random
 import sqlite3
-from datetime import datetime
+import numpy as np
 
 # ==============================================================================
 # 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТИЛИ
@@ -75,7 +75,9 @@ def get_factory_data():
         conn = sqlite3.connect(DB_NAME)
         df = pd.read_sql_query("SELECT * FROM factories WHERE id='kirov_zavod'", conn)
         conn.close()
-        return True, df.iloc[0].to_dict()
+        if not df.empty:
+            return True, df.iloc[0].to_dict()
+        return False, "Завод не найден в базе данных"
     except Exception as e:
         return False, f"Ошибка чтения данных завода: {str(e)}"
 
@@ -85,9 +87,11 @@ def buy_lead_transaction(lead_id):
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         cursor.execute("SELECT balance, is_premium FROM factories WHERE id='kirov_zavod'")
-        balance, is_premium = cursor.fetchone()
+        res = cursor.fetchone()
+        balance, is_premium = res[0], res[1]
         
         if is_premium == 0 and balance < 500:
+            conn.close()
             return False, "Недостаточно средств на балансе CPA. Пополните счет."
             
         if is_premium == 0:
@@ -153,13 +157,13 @@ st.markdown("""
 
 # Живые KPI подтягиваются из общей БД
 conn = sqlite3.connect(DB_NAME)
-total_leads_count = pd.read_sql_query("SELECT COUNT(*) FROM leads", conn).iloc[0,0]
+total_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads", conn).iloc[0]['cnt']
 conn.close()
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 kpi1.metric(label="Подключено заводов СПб", value="142 предприятия", delta="+4 за неделю")
 kpi2.metric(label="Граждан на обучении", value="482,900 чел.", delta="Охват регионов РФ")
-kpi3.metric(label="Сгенерировано лидов (Общее)", value=f"{18410 + total_leads_count} заявок", delta="Конверсия 91%")
+kpi3.metric(label="Сгенерировано лидов (Общее)", value=f"{18410 + int(total_leads_count)} заявок", delta="Конверсия 91%")
 kpi4.metric(label="Общий оборот эквайринга", value="4.2 млн ₽", delta="CPA модель")
 st.write("---")
 
@@ -180,7 +184,6 @@ if user_role == "🏢 Предприятие / Завод (B2B)":
         
         conn = sqlite3.connect(DB_NAME)
         leads_df = pd.read_sql_query("SELECT * FROM leads", conn)
-        courses_df = pd.read_sql_query("SELECT * FROM courses", conn)
         conn.close()
         
         c3.metric(label="Ваши целевые лиды", value=len(leads_df))
@@ -188,8 +191,11 @@ if user_role == "🏢 Предприятие / Завод (B2B)":
         if factory["is_premium"] == 0:
             if st.button("🔌 Переключить всю экосистему на Безлимитный Годовой Пакет", use_container_width=True, type="primary"):
                 succ, err = activate_premium_transaction()
-                if succ: st.success(err); st.rerun()
-                else: st.error(err)
+                if succ:
+                    st.success(err)
+                    st.rerun()
+                else:
+                    st.error(err)
 
         st.write("---")
         st.subheader("🎯 Поступившие горячие лиды из общей базы данных")
@@ -201,7 +207,7 @@ if user_role == "🏢 Предприятие / Завод (B2B)":
                 with st.container(border=True):
                     st.markdown(f"**Курс:** {row['course_title']} | **Рейтинг:** {row['rating']}")
                     c_info, c_act = st.columns(2)
-                    is_open = factory["is_premium"] == 1 or row["status"] == "Разблокирован"
+                    is_open = (factory["is_premium"] == 1) or (row["status"] == "Разблокирован")
                     c_info.write(f"**ФИО соискателя:** {row['name'] if is_open else '🔒 Скрыто системой CPA'}")
                     
                     if not is_open:
@@ -209,6 +215,3 @@ if user_role == "🏢 Предприятие / Завод (B2B)":
                         btn_name = "💳 Открыть контакт (500 ₽)" if has_cash else "❌ Пополните счет"
                         if c_act.button(btn_name, key=f"fac_buy_{row['id']}_{idx}", use_container_width=True, disabled=not has_cash):
                             succ, err = buy_lead_transaction(row['id'])
-                            if succ: st.rerun()
-                            else: st.error(err)
-                    else:
