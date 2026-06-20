@@ -53,8 +53,8 @@ factories_data = pd.DataFrame([
         "longitude": 30.2644,
         "district": "Кировский район",
         "vacancies_count": 42,
-        "vacancies_list": "• Operator станки с ЧПУ\n• Слесарь-сборщик\n• Наладчик роботизированных комплексов",
-        "description": "Ведущее машиностроительное предприятие России. Выпуск тракторов «Кировец», буровой техники и турбогенераторов. Модернизированное b2b-производство полного цикла.",
+        "vacancies_list": "• Оператор станков с ЧПУ\n• Слесарь-сборщик\n• Наладчик роботизированных комплексов",
+        "description": "Веднощее машиностроительное предприятие России. Выпуск тракторов «Кировец», буровой техники и турбогенераторов. Модернизированное b2b-производство полного цикла.",
         "course": "Цифровые стандарты безопасности «ПромКачество»"
     },
     {
@@ -73,7 +73,7 @@ factories_data = pd.DataFrame([
         "longitude": 30.3015,
         "district": "Приморский район",
         "vacancies_count": 25,
-        "vacancies_list": "• Монтажник электрооборудования летательных аппаратов\n• Испытатель двигателей\n• Operator лазерных установок",
+        "vacancies_list": "• Монтажник электрооборудования летательных аппаратов\n• Испытатель двигателей\n• Оператор лазерных установок",
         "description": "Лидер авиационного двигателестроения. Разработка, производство и сервисное обслуживание вертолетных и самолетных двигателей. Высокотехнологичные чистые зоны.",
         "course": "Сертификация по строгим оборонным стандартам качества"
     }
@@ -85,7 +85,7 @@ def get_factory_data():
         conn = sqlite3.connect(DB_NAME)
         df = pd.read_sql_query("SELECT * FROM factories WHERE id='kirov_zavod'", conn)
         conn.close()
-        return (True, df.iloc.to_dict()) if not df.empty else (False, "Завод не найден")
+        return (True, df.iloc[0].to_dict()) if not df.empty else (False, "Завод не найден")
     except Exception as e:
         return False, str(e)
 
@@ -110,11 +110,15 @@ def buy_lead_transaction(lead_id):
             conn.close()
             return False, "Завод не найден"
         balance, is_premium = res
-        if is_premium == 0 and balance < 500:
+        if is_premium == 1:
+            cursor.execute("UPDATE leads SET status = 'Разблокирован' WHERE id = ?", (lead_id,))
+            conn.commit()
+            conn.close()
+            return True, "Успешно"
+        if balance < 500:
             conn.close()
             return False, "Недостаточно средств"
-        if is_premium == 0:
-            cursor.execute("UPDATE factories SET balance = balance - 500 WHERE id='kirov_zavod'")
+        cursor.execute("UPDATE factories SET balance = balance - 500 WHERE id='kirov_zavod'")
         cursor.execute("UPDATE leads SET status = 'Разблокирован' WHERE id = ?", (lead_id,))
         conn.commit()
         conn.close()
@@ -193,14 +197,12 @@ if user_role == "🏢 Для заводов и производств":
         conn.close()
         c3.metric(label="Готовых кандидатов в базе", value=len(leads_df))
 
+        # ИСПРАВЛЕННЫЙ ПУЛЬТ УПРАВЛЕНИЯ БЮДЖЕТОМ (СТРОГО СОБЛЮДЕНЫ ОТСТУПЫ)
         st.write("---")
         st.subheader("⚙️ Панель управления b2b-бюджетом завода")
         col_pay, col_tariff = st.columns(2)
+        
         with col_pay:
             st.markdown("**💰 Имитация пополнения счета подбора:**")
             deposit_amount = st.number_input("Введите сумму пополнения (₽):", min_value=1000, max_value=500000, value=10000, step=5000)
             if st.button("💳 Внести средства на баланс", use_container_width=True):
-                succ, msg = update_factory_balance(deposit_amount)
-                if succ: st.toast(f"Баланс завода пополнен на {deposit_amount} ₽!"); st.rerun()
-                    
-        with col_tariff:
