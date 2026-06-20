@@ -197,3 +197,63 @@ if user_role == "🏢 Для заводов и производств":
         col_pay, col_tariff = st.columns(2)
         with col_pay:
             st.markdown("**💰 Имитация пополнения счета подбора:**")
+# ======================================================================================================================
+# КАБИНЕТ 3: ПУЛЬТ НАСТАВНИКА ЦЕХА (ФИЛЬТР ПРАКТИКИ И EXCEL) — СДВИГ КНОПКИ ВПРАВО И ФИКСАЦИЯ БЕЛОГО ЭКРАНА
+# ======================================================================================================================
+elif "Кабинет 3" in current_cabinet:
+    st.title("🛠️ Кабинет мастера цеха и сквозного мониторинга")
+    st.write("Наставники на производстве подтверждают успешное окончание практики, а HR-департамент выгружает реестры кадров.")
+    
+    tab_master_view, tab_analytics_view = st.tabs(["👨‍🔧 Аттестация соискателей у станков", "📊 Реестр готовых кадров для HR"])
+    
+    with tab_master_view:
+        st.subheader("🟢 Соискатели, проходящие практику на оборудовании прямо сейчас")
+        
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            practicians = conn.execute("SELECT c.id, c.fio, c.phone, c.education, f.factory_name, f.equipment_model FROM citizens c JOIN factories f ON c.assigned_factory_id = f.id WHERE c.current_status = 'На практике'").fetchall()
+            
+        if not practicians:
+            st.info("💡 В цехах на практике сейчас никого нет. Соискатели должны сдать тест в Кабинете №1.")
+        else:
+            for row in practicians:
+                st.write("---") # Наш визуальный разделитель
+                with st.container(border=True):
+                    st.markdown(f"👤 **ФИО:** {row['fio']} | 📞 **Телефон:** {row['phone']}")
+                    st.markdown(f"🏭 **Объект практики:** {row['factory_name']} | 🦾 **Оборудование:** `{row['equipment_model']}`")
+                    st.caption(f"Базовое образование соискателя: {row['education']}")
+                    
+                    # Разносим на 4 колонки, чтобы сдвинуть кнопку на самый правый край экрана
+                    c_l1, c_l2, c_l3, c_right = st.columns(4)
+                    with c_right:
+                        # Фикс белого экрана: Иероглиф '專' полностью вырезан, запрос чистый
+                        if st.button(label="🛠️ Подтвердить практику", key=f"master_btn_{row['id']}", type="primary", use_container_width=True):
+                            with get_db_connection() as conn:
+                                conn.execute("UPDATE citizens SET current_status='Железный специалист' WHERE id=?", (row['id'],))
+                                conn.commit()
+                            st.success("Специалист сертифицирован!")
+                            st.cache_data.clear()
+                            st.rerun()
+            st.write("---")
+
+    with tab_analytics_view:
+        st.subheader("📥 Скачивание итоговых b2b-реестров готовых кадров")
+        report_df = generate_excel_report()
+        
+        if report_df.empty:
+            st.info("💡 В системе пока нет соискателей со статус-кодом 'Железный специалист'. Пройдите воронку обучения.")
+        else:
+            st.dataframe(report_df, use_container_width=True, hide_index=True)
+            
+            with io.BytesIO() as excel_buffer:
+                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                    report_df.to_excel(writer, index=False, sheet_name="Железные специалисты")
+                processed_bytes = excel_buffer.getvalue()
+                
+            st.download_button(
+                label="📥 Скачать реестр соискателей в формате Excel для HR-департамента",
+                data=processed_bytes,
+                file_name="prom_quality_final_registry.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
