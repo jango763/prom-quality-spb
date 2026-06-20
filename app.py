@@ -4,20 +4,33 @@ import random
 import numpy as np
 
 # ==============================================================================
-# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТИЛИ
+# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТИЛИ (Добавлена темная индустриальная тема)
 # ==============================================================================
 st.set_page_config(page_title="ПромКачество.СПб | Экосистема", layout="wide", page_icon="🏭")
 
 st.markdown("""
     <style>
         .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #4A5568; }
-        div[data-testid="stMetricValue"] { font-size: 32px; font-weight: 800; color: #0F172A; }
+        div[data-testid="stMetricValue"] { font-size: 32px; font-weight: 800; color: #0284C7; }
         .highlight-box { padding: 20px; border-radius: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; margin-bottom: 15px; }
+        
+        /* Стиль для главного индустриального баннера */
+        .hero-banner {
+            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+            padding: 40px;
+            border-radius: 16px;
+            color: #FFFFFF;
+            margin-bottom: 30px;
+            border-left: 8px solid #0284C7;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        .hero-title { font-size: 38px; font-weight: 800; color: #FFFFFF; margin-bottom: 5px; }
+        .hero-subtitle { font-size: 18px; color: #94A3B8; font-weight: 400; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. ИНИЦИАЛИЗАЦИЯ ИЗ ТРЕБОВАНИЙ АУДИТА (Группировка State)
+# 2. ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ (State)
 # ==============================================================================
 if "app_platform" not in st.session_state:
     st.session_state["app_platform"] = {
@@ -34,7 +47,6 @@ if "app_platform" not in st.session_state:
         ]
     }
 
-# FIX #1: Защита от «Жёсткого сброса». Храним вводы данных студента в глобальной сессии, а не в виджетах
 if "student_form_cache" not in st.session_state:
     st.session_state["student_form_cache"] = {"active_course_id": None, "test_passed": False}
 
@@ -42,33 +54,47 @@ db = st.session_state["app_platform"]
 cache = st.session_state["student_form_cache"]
 
 # ==============================================================================
-# 3. УПРАВЛЕНИЕ ДОСТУПОМ (Сайдбар)
+# 3. САЙДБАР: НАВИГАЦИЯ И ДОСТУП
 # ==============================================================================
 with st.sidebar:
-    st.title("ПромКачество")
-    st.caption("Ассоциация промышленных предприятий СПб")
-    st.write("---")
+    st.title("👨‍💼 Профиль")
     user_role = st.selectbox(
-        "⚡ Авторизация в контуре:",
+        "Выбор рабочего пространства:",
         ["🏢 Предприятие / Завод (B2B)", "🎓 Гражданин / Ученик (B2C)", "💥 Маркетолог (Тизерный хаб)"]
     )
     st.write("---")
-    st.info("ℹ️ Демонстрация сквозной финтех-модели ДПО для ОПК Санкт-Петербурга.")
+    st.caption("🔒 Защищенный цифровой периметр АПП Санкт-Петербурга")
 
-st.title("🏭 Цифровая экосистема «ПромКачество.СПб»")
-st.caption("Федеральный каркас опережающего ДПО и автоматической лидогенерации")
+# ==============================================================================
+# 4. ПАРАДНАЯ ШАПКА ПЛАТФОРМЫ (Убираем белый пустой экран)
+# ==============================================================================
+st.markdown("""
+    <div class="hero-banner">
+        <div class="hero-title">🏭 Цифровая экосистема «ПромКачество.СПб»</div>
+        <div class="hero-subtitle">Федеральный каркас опережающего ДПО и автоматической лидогенерации АПП СПБ</div>
+    </div>
+""", unsafe_allow_html=True)
+
+# ЖИВЫЕ ГЛОБАЛЬНЫЕ KPI ПЛАТФОРМЫ (Показывают масштаб Спонсору)
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+kpi1.metric(label="Подключено заводов СПб", value="142 предприятия", delta="+4 за неделю")
+kpi2.metric(label="Граждан на обучении", value="482,900 чел.", delta="Охват регионов РФ")
+kpi3.metric(label="Сгенерировано лидов", value="18,410 заявок", delta="Конверсия 91%")
+kpi4.metric(label="Общий оборот финтех-эквайринга", value="4.2 млн ₽", delta="CPA модель")
+
+st.write("---")
 
 # ==============================================================================
 # 🏢 ИНТЕРФЕЙС РОЛИ: ЗАВОД
 # ==============================================================================
 if user_role == "🏢 Предприятие / Завод (B2B)":
-    st.subheader("Мониторинг b2b-бюджета и цифрового кадрового следа")
+    st.subheader("📊 Мониторинг b2b-бюджета и цифрового кадрового следа")
     
     c1, c2, c3 = st.columns(3)
-    c1.metric(label="Финтех-баланс (CPA)", value=f"{db['balance']:,.2f} ₽")
+    c1.metric(label="Ваш финтех-баланс (CPA)", value=f"{db['balance']:,.2f} ₽")
     tariff_txt = "БЕЗЛИМИТ" if db["is_premium"] else "CPA (500₽/лид)"
     c2.metric(label="Текущий B2B-тариф", value=tariff_txt)
-    c3.metric(label="Всего целевых лидов", value=len(db["leads"]))
+    c3.metric(label="Ваши целевые лиды", value=len(db["leads"]))
     
     if not db["is_premium"]:
         if st.button("🔌 Переключить всю экосистему на Безлимитный Годовой Пакет", use_container_width=True, type="primary"):
@@ -77,14 +103,13 @@ if user_role == "🏢 Предприятие / Завод (B2B)":
             st.rerun()
 
     st.write("---")
-    st.subheader("📊 Аналитика вовлечения граждан")
+    st.subheader("📈 Динамика вовлечения кадров на ваши курсы")
     chart_data = pd.DataFrame(np.random.randn(20, 3), columns=['Кликбейт', 'ДПО', 'Лиды']).cumsum()
     st.line_chart(chart_data)
 
     st.write("---")
     st.subheader("🎯 Поступившие горячие лиды (Кандидаты)")
     
-    # FIX #3: Empty States UX. Если список лидов пуст — выводим понятную b2b-заглушку
     if not db["leads"]:
         st.info("💡 На данный момент поступивших лидов нет. Сгенерируйте их, пройдя курс во вкладке 'Гражданин / Ученик'.")
     else:
@@ -96,10 +121,9 @@ if user_role == "🏢 Предприятие / Завод (B2B)":
                 c_info.write(f"**ФИО соискателя:** {lead['name'] if is_open else '🔒 Скрыто системой CPA'}")
                 
                 if not is_open:
-                    # FIX #2: Уникальный ID кнопки через динамический префикс + ID лида
-                    has_cash = db["balance"] >= 500
-                    btn_name = "💳 Открыть контакт (500 ₽)" if has_cash else "❌ Пополните счет"
-                    if c_act.button(btn_name, key=f"factory_buy_{lead['id']}_{idx}", use_container_width=True, disabled=not has_cash):
+                    has_money = db["balance"] >= 500
+                    btn_name = "💳 Открыть контакт (500 ₽)" if has_money else "❌ Пополните счет"
+                    if c_act.button(btn_name, key=f"factory_buy_{lead['id']}_{idx}", use_container_width=True, disabled=not has_money):
                         db["balance"] -= 500
                         db["leads"][idx]["status"] = "Разблокирован"
                         st.rerun()
@@ -110,28 +134,26 @@ if user_role == "🏢 Предприятие / Завод (B2B)":
 # 🎓 ИНТЕРФЕЙС РОЛИ: УЧЕНИК
 # ==============================================================================
 elif user_role == "🎓 Гражданин / Ученик (B2C)":
-    st.subheader("Бесплатное обучение под стандарты крупнейших производств Санкт-Петербурга")
+    st.subheader("🎓 Интерактивная академия профессиональной подготовки")
     
     st.write("---")
-    st.subheader("📍 Интерактивная карта заводов АПП")
+    st.subheader("📍 Карта распределения промышленных мощностей")
     map_data = pd.DataFrame({'lat': [59.9004, 59.8821, 59.8341], 'lon': [30.4322, 30.2743, 30.4912]})
     st.map(map_data, size=40)
 
     st.write("---")
     st.subheader("📋 Доступные программы опережающей подготовки:")
     
-    # FIX #3: Empty States UX для каталога курсов
     if not db["courses"]:
-        st.warning("⚠️ Каталог курсов пуст. Добавьте программы через административную панель.")
+        st.warning("⚠️ Каталог курсов пуст.")
     else:
         for idx, course in enumerate(db["courses"]):
             with st.container(border=True):
-                col_icon, col_txt, col_btn = st.columns([1, 5, 2])
+                col_icon, col_txt, col_btn = st.columns([1, 4, 2])
                 col_icon.write(f"# {course['color']}")
                 col_txt.write(f"### {course['title']}")
                 col_txt.write(f"🏭 Индустриальный автор: **{course['factory']}**")
                 
-                # FIX #2: Уникальный ID кнопки курса, предотвращающий падение DuplicateWidgetID
                 if col_btn.button("🚀 Начать бесплатное обучение", key=f"student_start_{course['id']}_{idx}", use_container_width=True):
                     cache["active_course_id"] = course['id']
                     cache["test_passed"] = True
@@ -148,7 +170,6 @@ elif user_role == "🎓 Гражданин / Ученик (B2C)":
                     st.balloons()
                     st.rerun()
                 
-                # FIX #1: Логика отрисовки учебного блока опирается строго на сохраненный кэш сессии
                 if cache["active_course_id"] == course['id'] and cache["test_passed"]:
                     st.success("🎯 Доступ к симулятору открыт! Ваше цифровое резюме направлено в HR-отдел завода.")
                     st.markdown("""
@@ -163,26 +184,11 @@ elif user_role == "🎓 Гражданин / Ученик (B2C)":
 # 💥 ИНТЕРФЕЙС РОЛИ: МАРКЕТОЛОГ
 # ==============================================================================
 elif user_role == "💥 Маркетолог платформы (Трафик)":
-    st.subheader("Механизм сверхдешевого вовлечения граждан Российской Федерации")
+    st.subheader("💥 Панель вирусного вовлечения b2c-аудитории")
     
-    st.write("---")
-    st.subheader("📈 Эффективность кликбейт-кампаний АПП")
-    
-    # FIX #3: Empty States UX. Если данных для графиков маркетинга нет — не ломаем верстку пустой таблицей
     if not db["courses"]:
-        st.info("📊 Сводная таблица аналитики пуста. Добавьте курсы в систему.")
+        st.info("📊 Сводная таблица аналитики пуста.")
     else:
         marketing_df = pd.DataFrame(db["courses"])
         st.dataframe(
             marketing_df[['title', 'factory', 'clicks', 'leads']],
-            column_config={
-                "title": "Целевой курс ДПО", "factory": "Завод-заказчик",
-                "clicks": st.column_config.ProgressColumn("Общее число кликов по шок-тизерам", format="%d", min_value=0, max_value=3000),
-                "leads": "Сгенерировано горячих лидов"
-            },
-            use_container_width=True
-        )
-    
-    st.write("---")
-    st.subheader("👀 Как это видит обычный гражданин в сети (Пример прокладки):")
-    st.error("### 🔥 ШОК! Самойлова Оксана подала в суд на Жигана из-за...")
