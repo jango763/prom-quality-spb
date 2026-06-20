@@ -4,9 +4,10 @@ import random
 import sqlite3
 import numpy as np
 import io
+import html
 
 # ==============================================================================
-# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И КОРПОРАТИВНЫЕ СТИЛИ
+# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И КОРПОРАТИВНЫЕ СТИЛИ (Промышленный дизайн)
 # ==============================================================================
 st.set_page_config(page_title="ПромКачество.СПб | Экосистема", layout="wide", page_icon="🏭")
 
@@ -22,11 +23,13 @@ st.markdown("""
         .marketing-card { padding: 15px; background-color: #FFFBEB; border-left: 5px solid #F59E0B; border-radius: 4px; margin-bottom: 10px; }
         .factory-title { color: #1E293B; font-size: 24px; font-weight: 700; margin-bottom: 10px; }
         .preview-box { padding: 20px; background-color: #FEF2F2; border: 2px dashed #EF4444; border-radius: 12px; margin-top: 15px; }
+        .passport-tag { display: inline-block; background-color: #E2E8F0; color: #334155; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-right: 5px; margin-bottom: 5px; }
+        .contract-signed { color: #10B981; font-weight: bold; font-size: 13px; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite БД — Единое b2b-хранилище)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (Общая база SQLite — Борьба с Race Condition)
 # ==============================================================================
 DB_NAME = "platform.db"
 
@@ -34,72 +37,81 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS factories (id TEXT PRIMARY KEY, balance REAL, is_premium INTEGER)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS leads (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, status TEXT, rating TEXT, district TEXT, current_status TEXT)")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, 
+            status TEXT, rating TEXT, district TEXT, current_status TEXT,
+            skills_cnc TEXT, skills_cad TEXT, contract_status TEXT
+        )
+    """)
     
     cursor.execute("SELECT COUNT(*) FROM factories")
     if cursor.fetchone() == 0:
         cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 25000.0, 0)")
-        cursor.executemany("INSERT INTO leads (name, phone, course_title, status, rating, district, current_status) VALUES (?, ?, ?, ?, ?, ?, ?)", [
-            ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Цифровые стандарты безопасности «ПромКачество»", "Заморожен", "⭐ 4.9", "Кировский район", "Студент выпускного курса"),
-            ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Допуск к высокоточному измерительному оборудованию шеринг-хаба", "Заморожен", "⭐ 4.7", "Калининский район", "Выпускник колледжа/вуза")
+        cursor.executemany("""
+            INSERT INTO leads (name, phone, course_title, status, rating, district, current_status, skills_cnc, skills_cad, contract_status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, [
+            ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Цифровые стандарты безопасности «ПромКачество»", "Заморожен", "⭐ 4.9", "Кировский район", "Студент выпускного курса", "Fanuc (30ч)", "Компас-3D (95%)", "Подписан в ЭДО (отработка 3 года)"),
+            ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Допуск к высокоточному измерительному оборудованию шеринг-хаба", "Заморожен", "⭐ 4.7", "Калининский район", "Выпускник колледжа/вуза", "Siemens (15ч)", "AutoCAD (88%)", "На согласовании")
         ])
     conn.commit()
     conn.close()
 
 init_db()
 
-# Данные для карты и b2b-профилей из вашего ТЗ
+# Данные промышленных гигантов из вашего ТЗ
 factories_data = pd.DataFrame([
     {
-        "name": "АО «Кировский завод»",
-        "latitude": 59.8789,
-        "longitude": 30.2644,
-        "district": "Кировский район",
-        "vacancies_count": 42,
+        "name": "АО «Кировский завод»", "latitude": 59.8789, "longitude": 30.2644, "district": "Кировский район", "vacancies_count": 42,
         "vacancies_list": "• Оператор станков с ЧПУ\n• Слесарь-сборщик\n• Наладчик роботизированных комплексов",
-        "description": "Ведущее машиностроительное предприятие России. Выпуск тракторов «Кировец», буровой техники и турбогенераторов. Модернизированное b2b-производство полного цикла.",
+        "description": "Ведущее машиностроительное предприятие России. Выпуск тракторов «Кировец», буровой техники и турбогенераторов.",
         "course": "Цифровые стандарты безопасности «ПромКачество»"
     },
     {
-        "name": "ПАО «Силовые машины» (ЛМЗ)",
-        "latitude": 59.9572,
-        "longitude": 30.3842,
-        "district": "Калининский район",
-        "vacancies_count": 38,
+        "name": "ПАО «Силовые машины» (ЛМЗ)", "latitude": 59.9572, "longitude": 30.3842, "district": "Калининский район", "vacancies_count": 38,
         "vacancies_list": "• Инженер-технолог по сварке\n• Токарь-карусельщик 5-6 разряда\n• Контролер ОТК",
-        "description": "Крупнейшее в стране энергомашиностроительное предприятие. Производство мощных паровых, газовых и гидравлических турбин для ТЭС, АЭС и ГЭС.",
+        "description": "Крупнейшее в стране энергомашиностроительное предприятие. Производство мощных паровых, газовых и гидравлических турбин.",
         "course": "Допуск к высокоточному измерительному оборудованию шеринг-хаба"
     },
     {
-        "name": "ОАО «ОДК-Климов»",
-        "latitude": 60.0247,
-        "longitude": 30.3015,
-        "district": "Приморский район",
-        "vacancies_count": 25,
+        "name": "ОАО «ОДК-Климов»", "latitude": 60.0247, "longitude": 30.3015, "district": "Приморский район", "vacancies_count": 25,
         "vacancies_list": "• Монтажник электрооборудования летательных аппаратов\n• Испытатель двигателей\n• Оператор лазерных установок",
-        "description": "Лидер авиационного двигателестроения. Разработка, производство и сервисное обслуживание вертолетных и самолетных двигателей. Высокотехнологичные чистые зоны.",
+        "description": "Лидер авиационного двигателестроения. Разработка, производство и сервисное обслуживание вертолетных и самолетных двигателей.",
         "course": "Сертификация по строгим оборонным стандартам качества"
     }
 ])
 
-# Контроллеры b2b-логики
+# ==============================================================================
+# 3. КЭШИРУЕМЫЙ СЛОЙ КОНТРОЛЛЕРОВ (ИСПРАВЛЕНИЕ БАГА #1 И #2)
+# ==============================================================================
+@st.cache_data(ttl=60)
+def generate_excel_report(query):
+    """ FIX #1: Энергонезависимый кэш генерации тяжелых Excel файлов """
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='АПП_СПб_Отчет')
+    return output.getvalue()
+
+def check_phone_uniqueness(phone):
+    """ FIX #2: Проверка телефона на уникальность для блокировки дубликатов """
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM leads WHERE phone = ?", (phone,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count == 0
+
 def get_factory_data():
     try:
         conn = sqlite3.connect(DB_NAME)
         df = pd.read_sql_query("SELECT * FROM factories WHERE id='kirov_zavod'", conn)
         conn.close()
         return (True, df.iloc.to_dict()) if not df.empty else (False, "Завод не найден")
-    except Exception as e:
-        return False, str(e)
-
-def update_factory_balance(amount):
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("UPDATE factories SET balance = balance + ? WHERE id='kirov_zavod'", (amount,))
-        conn.commit()
-        conn.close()
-        return True, "Успешно"
     except Exception as e:
         return False, str(e)
 
@@ -129,30 +141,22 @@ def buy_lead_transaction(lead_id):
     except Exception as e:
         return False, str(e)
 
-def add_new_lead_from_student(name, phone, course_title, district, current_status):
+def add_new_lead_from_student(name, phone, course_title, district, current_status, cnc_tag, cad_tag):
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO leads (name, phone, course_title, status, rating, district, current_status) 
-            VALUES (?, ?, ?, 'Заморожен', ?, ?, ?)
-        """, (name, phone, course_title, f"⭐ {random.uniform(4.5, 5.0):.1f}", district, current_status))
+            INSERT INTO leads (name, phone, course_title, status, rating, district, current_status, skills_cnc, skills_cad, contract_status) 
+            VALUES (?, ?, ?, 'Заморожен', ?, ?, ?, ?, ?, 'Подписан в ЭДО (отработка 3 года)')
+        """, (name, phone, course_title, f"⭐ {random.uniform(4.5, 5.0):.1f}", district, current_status, cnc_tag, cad_tag))
         conn.commit()
         conn.close()
         return True, "Успешно"
     except Exception as e:
         return False, str(e)
 
-def to_excel(df):
-    """ Конвертирует DataFrame в байтовый поток Excel для скачивания в один клик """
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Отчет ПромКачество')
-    processed_data = output.getvalue()
-    return processed_data
-
 # ==============================================================================
-# 3. НАВИГАЦИЯ И АВТОРИЗАЦИЯ
+# 4. РЕНДЕРИНГ ИНТЕРФЕЙСА ПЛАТФОРМЫ
 # ==============================================================================
 with st.sidebar:
     st.title("Вход в систему")
@@ -161,9 +165,9 @@ with st.sidebar:
         ["🏢 Для заводов и производств", "🎓 Для студентов и соискателей", "💥 Для маркетологов платформы"]
     )
     st.write("---")
-    st.caption("Ассоциация промышленных предприятий Санкт-Петербурга")
+    st.caption("Ассоциация промышленных предприятий СПб")
 
-# Парадный индустриальный баннер АПП СПБ
+# Парадный индустриальный баннер
 st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🏭 Единая промышленная платформа «ПромКачество»</div>
@@ -171,7 +175,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Живые b2b-метрики из базы данных
+# Живые b2b-метрики подтягиваются из общей БД
 conn = sqlite3.connect(DB_NAME)
 total_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads", conn).loc[0, 'cnt']
 unlocked_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads WHERE status='Разблокирован'", conn).loc[0, 'cnt']
@@ -184,24 +188,7 @@ kpi3.metric(label="Всего подготовлено выпускников", 
 kpi4.metric(label="Подобрано сотрудников на заводы", value=f"{int(unlocked_leads_count)} человек")
 st.write("---")
 
-# ==============================================================================
-# 4. ОТРИСОВКА ИНТЕРФЕЙСОВ РОЛЕЙ
-# ==============================================================================
-
-# --- ИНТЕРФЕЙС: ЗАВОД (B2B) ---
+# --- ЛОГИКА: ЗАВОД (B2B) ---
 if user_role == "🏢 Для заводов и производств":
     st.header("🏢 Кабинет отдела кадров предприятия")
     
-    success, factory = get_factory_data()
-    if success:
-        c1, c2, c3 = st.columns(3)
-        c1.metric(label="Ваш остаток на счете подбора", value=f"{factory['balance']:,.2f} ₽")
-        tariff_txt = "БЕЗЛИМИТНЫЙ ГОДОВОЙ НАЙМ" if factory["is_premium"] == 1 else "🪙 Поштучный подбор (500₽ / анкета)"
-        c2.metric(label="Ваш текущий тариф", value=tariff_txt)
-        
-        conn = sqlite3.connect(DB_NAME)
-        leads_df = pd.read_sql_query("SELECT * FROM leads", conn)
-        conn.close()
-        c3.metric(label="Готовых кандидатов в базе", value=len(leads_df))
-
-        # Панель управления бюджетом завода
