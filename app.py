@@ -2,205 +2,198 @@ import streamlit as st
 import pandas as pd
 import random
 import sqlite3
-import io
-import html
+import numpy as np
 
 # ==============================================================================
-# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И УЛУЧШЕННЫЕ СТИЛИ (Сдвиг правее и b2b-отступы)
+# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И КОРПОРАТИВНЫЕ СТИЛИ
 # ==============================================================================
-st.set_page_config(page_title="ПромКачество.СПб | Система Допусков", layout="wide", page_icon="🏭")
+st.set_page_config(page_title="ПромКачество.СПб | Экосистема", layout="wide", page_icon="🏭")
 
 st.markdown("""
     <style>
-        .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #334155; }
-        div[data-testid="stMetricValue"] { font-size: 36px; font-weight: 800; color: #10B981; }
-        .hero-banner { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); padding: 35px; border-radius: 12px; color: #FFFFFF; margin-bottom: 25px; border-left: 8px solid #10B981; }
-        .hero-title { font-size: 32px; font-weight: 800; }
-        .hero-subtitle { font-size: 15px; color: #94A3B8; }
-        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 700; color: white; }
-        .status-ready { background-color: #10B981; }
-        .status-process { background-color: #3B82F6; }
-        .status-warning { background-color: #F59E0B; }
-        .status-danger { background-color: #EF4444; }
-        .matching-box { padding: 15px; border-radius: 8px; background-color: #ECFDF5; border-left: 5px solid #10B981; color: #065F46; font-weight: 600; margin-bottom: 15px; }
-        .tag-pill { display: inline-block; background-color: #DBEAFE; color: #1E4ED8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 5px; }
-        
-        /* КЛЮЧЕВОЙ СДВИГ: Красивое b2b-выравнивание счетчика кандидатов правее */
-        .metric-right-container {
-            padding-left: 40px;
-            border-left: 4px solid #E2E8F0;
-            margin-top: 5px;
-        }
-        .metric-ready-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #475569;
-            margin-bottom: 8px;
-        }
-        .metric-ready-value {
-            font-size: 48px;
-            font-weight: 900;
-            color: #10B981;
-            line-height: 1;
-        }
+        .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #4A5568; }
+        div[data-testid="stMetricValue"] { font-size: 32px; font-weight: 800; color: #0284C7; }
+        .highlight-box { padding: 20px; border-radius: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; margin-bottom: 15px; }
+        .hero-banner { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); padding: 40px; border-radius: 16px; color: #FFFFFF; margin-bottom: 30px; border-left: 8px solid #0284C7; }
+        .hero-title { font-size: 34px; font-weight: 800; color: #FFFFFF; margin-bottom: 5px; }
+        .hero-subtitle { font-size: 16px; color: #94A3B8; }
+        .marketing-card { padding: 15px; background-color: #FFFBEB; border-left: 5px solid #F59E0B; border-radius: 4px; margin-bottom: 10px; }
+        .factory-title { color: #1E293B; font-size: 24px; font-weight: 700; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite в режиме WAL с фабрикой словарей)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite БД — Единое b2b-хранилище)
 # ==============================================================================
-DB_NAME = "production_control.db"
-
-def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col] = row[idx]
-    return d
+DB_NAME = "platform.db"
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL;")
+    cursor.execute("CREATE TABLE IF NOT EXISTS factories (id TEXT PRIMARY KEY, balance REAL, is_premium INTEGER)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS courses (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, factory TEXT, clicks INTEGER, leads INTEGER, color TEXT, lat REAL, lon REAL, district TEXT, vacancies INTEGER, desc TEXT, spec TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS leads (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, status TEXT, rating TEXT)")
     
-    cursor.execute("DROP TABLE IF EXISTS courses;")
-    cursor.execute("DROP TABLE IF EXISTS citizens;")
-    
-    cursor.execute("""
-        CREATE TABLE courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            factory_name TEXT,
-            course_title TEXT,
-            equipment_model TEXT,
-            safety_instructions TEXT,
-            district TEXT,
-            tag_cnc INTEGER,
-            tag_robot INTEGER,
-            tag_hydro INTEGER,
-            secret_question TEXT,
-            secret_answer TEXT
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT,
-            phone TEXT,
-            district TEXT,
-            current_education TEXT,
-            current_status TEXT,
-            course_id INTEGER
-        )
-    """)
-    
-    cursor.execute("""
-        INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) 
-        VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 
-        'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1,
-        'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')
-    """)
-    
-    cursor.executemany("""
-        INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id) VALUES (?, ?, ?, ?, ?, ?)
-    """, [
-        ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный специалист", 1),
-        ("Смирнов Кирилл Михайлович", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1),
-        ("Иванов Игорь Игоревич", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1)
-    ])
+    cursor.execute("SELECT COUNT(*) FROM factories")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 1500.0, 0)")
+        cursor.executemany("""
+            INSERT INTO courses (title, factory, clicks, leads, color, lat, lon, district, vacancies, desc, spec) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, [
+            (
+                "Отказоустойчивость гидравлических систем", "ПАО 'Силовые машины' (ЛМЗ)", 1420, 84, "🔵", 59.9572, 30.3842, "Калининский район", 38,
+                "Крупнейшее в стране энергомашиностроительное предприятие. Производство мощных паровых, газовых и гидравлических турбин для ТЭС, АЭС и ГЭС.",
+                "Допуск к высокоточному измерительному оборудованию шеринг-хаба."
+            ),
+            (
+                "Программирование ЧПУ циклов серии ИТ-42", "АО 'Кировский завод'", 2850, 196, "⚙️", 59.8789, 30.2644, "Кировский район", 42,
+                "Ведущее машиностроительное предприятие России. Выпуск тракторов 'Кировец', буровой техники и турбогенераторов. Модернизированное b2b-производство полного цикла.",
+                "Требуется знание цифровых стандартов безопасности 'ПромКачество'."
+            ),
+            (
+                "Метрология и лазерный контроль геометрии", "ОАО 'ОДК-Климов'", 930, 41, "🔬", 60.0247, 30.3015, "Выборгский район", 25,
+                "Лидер авиационного двигателестроения. Разработка, производство и сервисное обслуживание вертолетных и самолетных двигателей. Высокотехнологичные чистые зоны.",
+                "Сертификация по строгим оборонным стандартам качества."
+            )
+        ])
+        cursor.executemany("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, ?, ?)", [
+            ("Александров К.М. (Военмех)", "+7 (921) 345-67-89", "Программирование ЧПУ циклов серии ИТ-42", "Заморожен", "⭐ 4.9"),
+            ("Дмитриев А.В. (СПбПУ)", "+7 (911) 987-65-43", "Отказоустойчивость гидравлических систем", "Заморожен", "⭐ 4.7")
+        ])
     conn.commit()
     conn.close()
 
 init_db()
 
-factories_static = {
-    "АО «Кировский завод»": {"inn": "7805041230", "district": "Кировский район"},
-    "ПАО «Силовые машины» (ЛМЗ)": {"inn": "7804014560", "district": "Калининский район"},
-    "ОАО «ОДК-Климов»": {"inn": "7814039910", "district": "Приморский район"}
-}
+# Контроллеры b2b-логики
+def get_factory_data():
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        df = pd.read_sql_query("SELECT * FROM factories WHERE id='kirov_zavod'", conn)
+        conn.close()
+        return (True, df.iloc[0].to_dict()) if not df.empty else (False, "Завод не найден")
+    except Exception as e:
+        return False, str(e)
 
-def fetch_all_from_db(query, params=()):
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = dict_factory
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    res = cursor.fetchall()
-    conn.close()
-    return res
+def update_factory_balance(amount):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE factories SET balance = balance + ? WHERE id='kirov_zavod'", (amount,))
+        conn.commit()
+        conn.close()
+        return True, "Баланс успешно пополнен"
+    except Exception as e:
+        return False, str(e)
+
+def buy_lead_transaction(lead_id):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT balance, is_premium FROM factories WHERE id='kirov_zavod'")
+        res = cursor.fetchone()
+        if not res:
+            conn.close()
+            return False, "Завод не найден"
+        balance, is_premium = res
+        if is_premium == 0 and balance < 500:
+            conn.close()
+            return False, "Недостаточно средств"
+        if is_premium == 0:
+            cursor.execute("UPDATE factories SET balance = balance - 500 WHERE id='kirov_zavod'")
+        cursor.execute("UPDATE leads SET status = 'Разблокирован' WHERE id = ?", (lead_id,))
+        conn.commit()
+        conn.close()
+        return True, "Успешно"
+    except Exception as e:
+        return False, str(e)
+
+def simulate_marketing_traffic(course_title, added_clicks):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE courses SET clicks = clicks + ? WHERE title = ?", (added_clicks, course_title))
+        conn.commit()
+        conn.close()
+        return True, "Успешно"
+    except Exception as e:
+        return False, str(e)
+
+def add_new_lead_from_student(course_title):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        random_digits = "".join([str(random.randint(0, 9)) for _ in range(7)])
+        safe_phone = f"+7 (931) {random_digits[:3]}-{random_digits[3:5]}-{random_digits[5:]}"
+        cursor.execute("INSERT INTO leads (name, phone, course_title, status, rating) VALUES (?, ?, ?, 'Заморожен', ?)",
+                       (f"Выпускник академии №{random.randint(100, 999)}", safe_phone, course_title, f"⭐ {random.uniform(4.5, 5.0):.1f}"))
+        cursor.execute("UPDATE courses SET leads = leads + 1 WHERE title = ?", (course_title,))
+        conn.commit()
+        conn.close()
+        return True, "Успешно"
+    except Exception as e:
+        return False, str(e)
 
 # ==============================================================================
-# 3. НАВИГАЦИЯ (САЙДБАР)
+# 3. НАВИГАЦИЯ И АВТОРИЗАЦИЯ
 # ==============================================================================
+if "active_course_title" not in st.session_state:
+    st.session_state["active_course_title"] = None
+
 with st.sidebar:
-    st.title("🔒 Контур Допусков АПП")
+    st.title("Вход в систему")
     user_role = st.selectbox(
         "Выберите ваш личный кабинет:",
-        ["🏢 Личный кабинет Производственника", "🎓 Портал Гражданина РФ", "🛠️ Наш кабинет АПП (Управление экосистемой)"]
+        ["🏢 Для заводов и производств", "🎓 Для студентов и соискателей", "💥 Для маркетологов платформы"]
     )
     st.write("---")
-    st.caption("Ассоциация промышленных предприятий СПб")
+    st.caption("Ассоциация промышленных предприятий Санкт-Петербурга")
 
+# Парадный индустриальный баннер АПП СПБ
 st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
-        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ</div>
+        <div class="hero-title">🏭 Единая промышленная платформа «ПромКачество»</div>
+        <div class="hero-subtitle">Система быстрого обучения кадров под нужды заводов Санкт-Петербурга</div>
     </div>
 """, unsafe_allow_html=True)
 
-courses_list = fetch_all_from_db("SELECT * FROM courses")
-citizens_list = fetch_all_from_db("SELECT * FROM citizens")
+# Живые b2b-метрики из базы данных
+conn = sqlite3.connect(DB_NAME)
+total_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads", conn).loc[0, 'cnt']
+unlocked_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads WHERE status='Разблокирован'", conn).loc[0, 'cnt']
+conn.close()
 
-kpi1, kpi2, kpi3 = st.columns(3)
-kpi1.metric(label="Развернутых b2b-курсов", value=f"{len(courses_list)} моделей")
-kpi2.metric(label="Граждан в системе ДПО", value=f"{len(citizens_list)} соискателей")
-ready_cnt = sum(1 for c in citizens_list if c['current_status'] == 'Железный специалист')
-kpi3.metric(label="Верифицировано «Железных специалистов»", value=f"{ready_cnt} мастеров")
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+kpi1.metric(label="Заводов-партнеров в системе", value="142 предприятия")
+kpi2.metric(label="Студентов учатся сейчас", value="482,900 человек")
+kpi3.metric(label="Всего подготовлено выпускников", value=f"{int(total_leads_count)} человек")
+kpi4.metric(label="Подобрано сотрудников на заводы", value=f"{int(unlocked_leads_count)} человек")
 st.write("---")
 
 # ==============================================================================
-# КАБИНЕТ 1: 🏢 ЛИЧНЫЙ КАБИНЕТ ПРОИЗВОДСТВЕННИКА (B2B)
+# 4. ОТРИСОВКА ИНТЕРФЕЙСОВ РОЛЕЙ
 # ==============================================================================
-if user_role == "🏢 Личный кабинет Производственника":
-    st.header("🏢 Личный кабинет Завода-Производителя оборудования")
-    st.markdown('<div class="italy-box"><b>💡 Логика Итальянских Мастеров:</b> Выкладывайте развернутые обучающие материалы по вашим передовым станкам. Граждане РФ обучатся работе именно на ваших технологиях, формируя спрос на закупку вашего оборудования.</div>', unsafe_allow_html=True)
+
+# --- ИНТЕРФЕЙС: ЗАВОД (B2B) ---
+if user_role == "🏢 Для заводов и производств":
+    st.header("🏢 Кабинет отдела кадров предприятия")
+    st.write("Здесь вы управляете бюджетом на подбор персонала и видите анкеты людей, которые обучились по вашим инструкциям.")
     
-    tab_upload, tab_hr_registry = st.tabs(["📥 Сконструировать кадровый заказ и ДПО курс", "📋 Реестр проверенных специалистов HR"])
-    
-    with tab_upload:
-        # Сетка 3-х колонок для выравнивания метрик. Готовые кандидаты сдвинуты в col3 правее
-        col_m1, col_m2, col_m3 = st.columns([1, 1, 1])
+    success, factory = get_factory_data()
+    if success:
+        c1, c2, c3 = st.columns(3)
+        c1.metric(label="Ваш остаток на счете подбора", value=f"{factory['balance']:,.2f} ₽")
+        tariff_txt = "БЕЗЛИМИТНЫЙ ГОДОВОЙ НАЙМ" if factory["is_premium"] == 1 else "🪙 Поштучный подбор (500₽ / анкета)"
+        c2.metric(label="Ваш текущий тариф", value=tariff_txt)
         
-        with col_m1:
-            st.metric(label="Ваш остаток на счете подбора", value="25,000.00 ₽")
-        with col_m2:
-            st.metric(label="Ваш текущий тариф", value="БЕЗЛИМИТНЫЙ ГОДОВОЙ НАЙМ")
-        with col_m3:
-            # СДВИГ ПРАВЕЕ И КРАСИВАЯ ОТРИСОВКА МЕТРИКИ КАНДИДАТОВ
-            st.markdown(f"""
-                <div class="metric-right-container">
-                    <div class="metric-ready-title">Готовых кандидатов в базе</div>
-                    <div class="metric-ready-value">{len(citizens_list)}</div>
-                </div>
-            """, unsafe_allow_html=True)
-            
+        conn = sqlite3.connect(DB_NAME)
+        leads_df = pd.read_sql_query("SELECT * FROM leads", conn)
+        conn.close()
+        c3.metric(label="Готовых кандидатов в базе", value=len(leads_df))
+
         st.write("---")
-        
-        with st.form("dpo_upload_form", clear_on_submit=True):
-            f_name = st.selectbox("Выберите ваше зарегистрированное предприятие:", list(factories_static.keys()))
-            st.caption(f"⚙️ Верифицированный ИНН: **{factories_static[f_name]['inn']}** | Локация: **{factories_static[f_name]['district']}**")
-            
-            c_title = st.text_input("Название программы опережающего ДПО:")
-            e_model = st.text_input("Модель дорогостоящего промышленного станка:", value="Станок ЧПУ 20млн+")
-            
-            st.markdown("**🛠️ Выберите технологические направления оборудования (Теги найма):**")
-            c_cnc = st.checkbox("ЧПУ-комплексы и обрабатывающие центры", value=True)
-            c_robot = st.checkbox("Робототехника / Автоматизация цеха")
-            c_hydro = st.checkbox("Промышленная гидравлика и тяжелые прессы")
-            
-            s_instructions = st.text_area("Развернутый текст регламента безопасности и эксплуатации станка:")
-            sec_q = st.text_input("Сконструируйте кастомный секретный вопрос по ТБ:", value="Какое давление в гидросистеме является критическим для пресса?")
-            sec_a = st.text_input("Внесите эталонный правильный ответ:", value="Выше 5 МПа")
-            
-            if st.form_submit_button("Опубликовать комплексные требования завода", use_container_width=True):
-                if c_title.strip() and s_instructions.strip():
-                    conn = sqlite3.connect(DB_NAME)
-                    conn.execute("""
+        st.subheader("⚙️ Панель управления b2b-бюджетом завода")
+        col_pay, col_tariff = st.columns(2)
+        with col_pay:
+            st.markdown("**💰 Имитация пополнения счета подбора:**")
