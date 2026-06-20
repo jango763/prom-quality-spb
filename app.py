@@ -15,13 +15,14 @@ st.markdown("""
         div[data-testid="stMetricValue"] { font-size: 32px; font-weight: 800; color: #0284C7; }
         .highlight-box { padding: 20px; border-radius: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; margin-bottom: 15px; }
         .hero-banner { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); padding: 40px; border-radius: 16px; color: #FFFFFF; margin-bottom: 30px; border-left: 8px solid #0284C7; }
-        .hero-title { font-size: 38px; font-weight: 800; color: #FFFFFF; margin-bottom: 5px; }
-        .hero-subtitle { font-size: 18px; color: #94A3B8; }
+        .hero-title { font-size: 34px; font-weight: 800; color: #FFFFFF; margin-bottom: 5px; }
+        .hero-subtitle { font-size: 16px; color: #94A3B8; }
+        .marketing-card { padding: 15px; background-color: #FFFBEB; border-left: 5px solid #F59E0B; border-radius: 4px; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite БД)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (Общая база SQLite)
 # ==============================================================================
 DB_NAME = "platform.db"
 
@@ -33,8 +34,8 @@ def init_db():
     cursor.execute("CREATE TABLE IF NOT EXISTS leads (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, course_title TEXT, status TEXT, rating TEXT)")
     
     cursor.execute("SELECT COUNT(*) FROM factories")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 25000.0, 0)")
+    if cursor.fetchone() == 0:
+        cursor.execute("INSERT INTO factories VALUES ('kirov_zavod', 1500.0, 0)")
         cursor.executemany("INSERT INTO courses (title, factory, clicks, leads, color) VALUES (?, ?, ?, ?, ?)", [
             ("Отказоустойчивость гидравлических систем", "АО 'Силовые машины'", 1420, 84, "🔵"),
             ("Программирование ЧПУ циклов серии ИТ-42", "АО 'Кировский завод'", 2850, 196, "⚙️"),
@@ -49,15 +50,13 @@ def init_db():
 
 init_db()
 
-# Контроллеры данных
+# Контроллеры b2b-логики
 def get_factory_data():
     try:
         conn = sqlite3.connect(DB_NAME)
         df = pd.read_sql_query("SELECT * FROM factories WHERE id='kirov_zavod'", conn)
         conn.close()
-        if not df.empty:
-            return True, df.iloc[0].to_dict()
-        return False, "Завод не найден"
+        return (True, df.iloc.to_dict()) if not df.empty else (False, "Завод не найден")
     except Exception as e:
         return False, str(e)
 
@@ -83,11 +82,11 @@ def buy_lead_transaction(lead_id):
     except Exception as e:
         return False, str(e)
 
-def activate_premium_transaction():
+def simulate_marketing_traffic(course_title, added_clicks):
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute("UPDATE factories SET is_premium = 1 WHERE id='kirov_zavod'")
+        cursor.execute("UPDATE courses SET clicks = clicks + ? WHERE title = ?", (added_clicks, course_title))
         conn.commit()
         conn.close()
         return True, "Успешно"
@@ -110,100 +109,87 @@ def add_new_lead_from_student(course_title):
         return False, str(e)
 
 # ==============================================================================
-# 3. САЙДБАР И НАВИГАЦИЯ
+# 3. НАВИГАЦИЯ И ДОСТУП
 # ==============================================================================
 if "active_course_id" not in st.session_state:
     st.session_state["active_course_id"] = None
 
 with st.sidebar:
-    st.title("ПромКачество")
-    st.caption("Ассоциация промышленных предприятий СПб")
-    st.write("---")
+    st.title("Вход в систему")
+    # Доступный понятный выбор ролей для демонстрации
     user_role = st.selectbox(
-        "⚡ Авторизация в контуре:",
-        ["🏢 Предприятие / Завод (B2B)", "🎓 Гражданин / Ученик (B2C)", "💥 Маркетолог (Тизерный хаб)"]
+        "Выберите ваш личный кабинет:",
+        ["🏢 Для заводов и производств", "🎓 Для студентов и соискателей", "💥 Для маркетологов платформы"]
     )
+    st.write("---")
+    st.caption("Ассоциация промышленных предприятий Санкт-Петербурга")
 
-# Парадный баннер
+# Парадный понятный баннер (Без сложных терминов)
 st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🏭 Цифровая экосистема «ПромКачество.СПб»</div>
-        <div class="hero-subtitle">Федеральный каркас опережающего ДПО и автоматической лидогенерации АПП СПБ</div>
+        <div class="hero-title">🏭 Единая промышленная платформа «ПромКачество»</div>
+        <div class="hero-subtitle">Система быстрого обучения кадров под нужды заводов Санкт-Петербурга</div>
     </div>
 """, unsafe_allow_html=True)
 
-# Безопасный расчет KPI
+# Глобальные счетчики на понятном языке
 conn = sqlite3.connect(DB_NAME)
 total_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads", conn).loc[0, 'cnt']
+unlocked_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads WHERE status='Разблокирован'", conn).loc[0, 'cnt']
 conn.close()
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-kpi1.metric(label="Подключено заводов СПб", value="142 предприятия", delta="+4 за неделю")
-kpi2.metric(label="Граждан на обучении", value="482,900 чел.", delta="Охват регионов РФ")
-kpi3.metric(label="Сгенерировано лидов", value=f"{18410 + int(total_leads_count)} заявок", delta="Конверсия 91%")
-kpi4.metric(label="Общий оборот эквайринга", value="4.2 млн ₽", delta="CPA модель")
+kpi1.metric(label="Заводов-партнеров в системе", value="142 предприятия")
+kpi2.metric(label="Студентов учатся сейчас", value="482,900 человек")
+kpi3.metric(label="Всего подготовлено выпускников", value=f"{int(total_leads_count)} человек")
+kpi4.metric(label="Подобрано сотрудников на заводы", value=f"{int(unlocked_leads_count)} человек")
 st.write("---")
 
 # ==============================================================================
-# 4. ОТРИСОВКА ИНТЕРФЕЙСОВ РОЛЕЙ (ОШИБКИ БЕЛОГО ЭКРАНА ЛИКВИДИРОВАНЫ)
+# 4. ОТРИСОВКА ИНТЕРФЕЙСОВ
 # ==============================================================================
-if user_role == "🏢 Предприятие / Завод (B2B)":
-    st.subheader("🏢 Кабинет Индустриального Партнера")
+
+# --- ЯЗЫК ПРОИЗВОДСТВА (B2B) ---
+if user_role == "🏢 Для заводов и производств":
+    st.header("🏢 Кабинет отдела кадров предприятия")
+    st.write("Здесь вы управляете бюджетом на подбор персонала и видите анкеты людей, которые обучились по вашим инструкциям.")
+    
     success, factory = get_factory_data()
     if success:
         c1, c2, c3 = st.columns(3)
-        c1.metric(label="Финтех-баланс (CPA)", value=f"{factory['balance']:,.2f} ₽")
-        tariff_txt = "БЕЗЛИМИТ" if factory["is_premium"] == 1 else "CPA (500₽/лид)"
-        c2.metric(label="Текущий B2B-тариф", value=tariff_txt)
+        c1.metric(label="Ваш остаток на счете подбора", value=f"{factory['balance']:,.2f} ₽")
+        tariff_txt = "БЕЗЛИМИТНЫЙ ГОДОВОЙ НАЙМ" if factory["is_premium"] == 1 else "🪙 Поштучный подбор (500₽ / анкета)"
+        c2.metric(label="Ваш текущий тариф", value=tariff_txt)
         
         conn = sqlite3.connect(DB_NAME)
         leads_df = pd.read_sql_query("SELECT * FROM leads", conn)
         conn.close()
-        c3.metric(label="Ваши целевые лиды", value=len(leads_df))
-        
-        if factory["is_premium"] == 0:
-            if st.button("🔌 Перейти на Безлимитный Годовой Пакет", use_container_width=True, type="primary"):
-                succ, err = activate_premium_transaction()
-                if succ: st.rerun()
+        c3.metric(label="Готовых кандидатов в базе", value=len(leads_df))
 
         st.write("---")
-        st.subheader("🎯 Поступившие горячие лиды")
+        st.subheader("🎯 Квалифицированные специалисты, прошедшие ваши курсы")
+        st.info("💡 Логика 'Итальянских поваров': эти кандидаты сдали тест и умеют работать строго на вашем типе оборудования.")
+        
         for idx, row in leads_df.iterrows():
             with st.container(border=True):
-                st.markdown(f"**Курс:** {row['course_title']} | **Рейтинг:** {row['rating']}")
+                st.markdown(f"**Изученный стандарт:** {row['course_title']} | **Оценка за итоговый тест:** {row['rating']}")
                 c_info, c_act = st.columns(2)
                 is_open = (factory["is_premium"] == 1) or (row["status"] == "Разблокирован")
-                c_info.write(f"**ФИО соискателя:** {row['name'] if is_open else '🔒 Скрыто системой CPA'}")
+                
+                # Язык бизнеса: вместо "лид скрыт" -> "контакт скрыт до списания"
+                c_info.write(f"**ФИО соискателя:** {row['name'] if is_open else '🔒 Контактные данные скрыты (требуется выкуп анкеты)'}")
                 if not is_open:
                     has_cash = factory["balance"] >= 500
-                    btn_name = "💳 Открыть контакт (500 ₽)" if has_cash else "❌ Пополните счет"
+                    btn_name = "💳 Открыть прямые контакты (500 ₽)" if has_cash else "❌ Пополните счет подбора"
                     if c_act.button(btn_name, key=f"fac_buy_{row['id']}_{idx}", use_container_width=True, disabled=not has_cash):
                         succ, err = buy_lead_transaction(row['id'])
                         if succ: st.rerun()
                 else:
-                    c_act.success(f"📞 {row['phone']}")
+                    c_act.success(f"📞 Телефон для связи: **{row['phone']}**")
 
-elif user_role == "🎓 Гражданин / Ученик (B2C)":
-    st.subheader("🎓 Интерактивная академия профессиональной подготовки")
+# --- ЯЗЫК СТУДЕНТА (B2C) ---
+elif user_role == "🎓 Для студентов и соискателей":
+    st.header("🎓 Бесплатное обучение и гарантированная работа на заводах СПб")
+    st.write("Изучите инструкции ведущих предприятий города, сдайте короткий онлайн-тест и получите приглашение на работу в отдел кадров.")
     
-    st.write("📍 География промышленных мощностей Санкт-Петербурга")
-    map_data = pd.DataFrame({'lat': [59.9004, 59.8821, 59.8341], 'lon': [30.4322, 30.2743, 30.4912]})
-    st.map(map_data, size=40)
-
-    st.write("---")
-    conn = sqlite3.connect(DB_NAME)
-    courses_df = pd.read_sql_query("SELECT * FROM courses", conn)
-    conn.close()
-    
-    for idx, row in courses_df.iterrows():
-        with st.container(border=True):
-            col_icon, col_txt, col_btn = st.columns()
-            col_icon.write(f"# {row['color']}")
-            col_txt.write(f"### {row['title']}")
-            col_txt.write(f"🏭 Индустриальный автор: **{row['factory']}**")
-            
-            if col_btn.button("🚀 Начать бесплатное обучение", key=f"stud_start_{row['id']}_{idx}", use_container_width=True):
-                st.session_state["active_course_id"] = row['id']
-                succ, err = add_new_lead_from_student(row['title'])
-                if succ: st.balloons(); st.rerun()
-            
+    st.write("📍 Посмотрите, где находятся заводы-работодатели на карте города:")
