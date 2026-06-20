@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
+import random
 import sqlite3
 import io
+import html
 
 # ==============================================================================
-# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И УТВЕРЖДЕННЫЕ СТИЛИ (Дизайн без изменений)
+# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И УТВЕРЖДЕННЫЕ СТИЛИ (Прошлый b2b-дизайн)
 # ==============================================================================
 st.set_page_config(page_title="ПромКачество.СПб | Система Допусков", layout="wide", page_icon="🏭")
 
@@ -23,7 +25,7 @@ st.markdown("""
         .matching-box { padding: 15px; border-radius: 8px; background-color: #ECFDF5; border-left: 5px solid #10B981; color: #065F46; font-weight: 600; margin-bottom: 15px; }
         .tag-pill { display: inline-block; background-color: #DBEAFE; color: #1E4ED8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 5px; }
         
-        /* Красивое b2b-выравнивание счетчика готовых кандидатов правее */
+        /* Утвержденный сдвиг счетчика кандидатов в правую колонку */
         .metric-right-container {
             padding-left: 40px;
             border-left: 4px solid #E2E8F0;
@@ -45,7 +47,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite в режиме WAL — Жесткая очистка структуры)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite в режиме WAL — Автономность и стабильность)
 # ==============================================================================
 DB_NAME = "production_control.db"
 
@@ -128,7 +130,7 @@ def fetch_all_from_db(query, params=()):
     return res
 
 # ==============================================================================
-# 3. НАВИГАЦИЯ (САЙДБАР С ЖЕСТКИМ ХРАНЕНИЕМ СЕССИИ УЧЕНИКА)
+# 3. НАВИГАЦИЯ И БЕЗОПАСНАЯ СЕССИЯ (Сайдбар)
 # ==============================================================================
 with st.sidebar:
     st.title("🔒 Контур Допусков АПП")
@@ -138,15 +140,15 @@ with st.sidebar:
     )
     st.write("---")
     
-    # Извлекаем список граждан из БД для безопасного управления сессией без падений
+    # Сеанс из базы данных — исключает затирание переменных и белый экран
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = dict_factory
     citizens_session_list = conn.execute("SELECT id, fio, current_status FROM citizens").fetchall()
     conn.close()
     
-    st.caption("👤 Сеанс авторизованного соискателя:")
+    st.caption("👤 Активный сеанс соискателя:")
     user_map = {f"{c['fio']} [{c['current_status']}]": c['id'] for c in citizens_session_list}
-    selected_user_label = st.selectbox("Активный профиль в системе:", list(user_map.keys()))
+    selected_user_label = st.selectbox("Переключение сессий со сцены:", list(user_map.keys()))
     active_student_id = user_map[selected_user_label]
 
 st.markdown("""
@@ -162,7 +164,7 @@ citizens_list = fetch_all_from_db("SELECT * FROM citizens")
 kpi1, kpi2, kpi3 = st.columns(3)
 kpi1.metric(label="Развернутых b2b-курсов", value=f"{len(courses_list)} моделей")
 kpi2.metric(label="Граждан в системе ДПО", value=f"{len(citizens_list)} соискателей")
-ready_cnt = sum(1 for c in citizens_list if c.get('current_status') == 'Железный專员' or c.get('current_status') == 'Железный специалист')
+ready_cnt = sum(1 for c in citizens_list if c.get('current_status') == 'Железный специалист')
 kpi3.metric(label="Верифицировано «Железных специалистов»", value=f"{ready_cnt} мастеров")
 st.write("---")
 
@@ -171,7 +173,7 @@ st.write("---")
 # ==============================================================================
 if user_role == "🏢 Личный кабинет Производственника":
     st.header("🏢 Личный кабинет Завода-Производителя оборудования")
-    st.markdown('<div class="italy-box"><b>💡 Логика Итальянских Мастеров:</b> Выкладывайте развернутые обучающие материалы по вашим передовым станкам. Граждане РФ обучатся работе именно на ваших технологиях, формируя спрос на закупку вашего оборудования.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="matching-box"><b>💡 Логика Итальянских Мастеров:</b> Выкладывайте развернутые обучающие материалы по вашим передовым станкам. Граждане РФ обучатся работе именно на ваших технологиях, формируя спрос на закупку вашего оборудования.</div>', unsafe_allow_html=True)
     
     tab_upload, tab_hr_registry = st.tabs(["📥 Сконструировать кадровый заказ и ДПО курс", "📋 Реестр проверенных специалистов HR"])
     
