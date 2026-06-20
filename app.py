@@ -18,8 +18,6 @@ st.markdown("""
         .hero-banner { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); padding: 40px; border-radius: 16px; color: #FFFFFF; margin-bottom: 25px; border-left: 8px solid #10B981; }
         .hero-title { font-size: 34px; font-weight: 800; color: #FFFFFF; margin-bottom: 5px; }
         .hero-subtitle { font-size: 16px; color: #94A3B8; }
-        .kpi-click-box { padding: 20px; border-radius: 12px; background-color: #F8FAFC; border: 2px solid #E2E8F0; text-align: center; cursor: pointer; transition: 0.3s; }
-        .kpi-click-box:hover { border-color: #0284C7; background-color: #F0F9FF; }
         .simulator-box { padding: 25px; background-color: #1E293B; color: #F8FAFC; border-radius: 12px; font-family: 'Courier New', Courier, monospace; border-left: 6px solid #38BDF8; margin-top: 15px; }
         .passport-tag { display: inline-block; background-color: #E2E8F0; color: #334155; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-right: 5px; margin-bottom: 5px; }
     </style>
@@ -86,13 +84,13 @@ def get_factory_data():
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql_query("SELECT * FROM factories WHERE id='kirov_zavod'", conn)
     conn.close()
-    return df.iloc[0].to_dict()
+    return df.iloc.to_dict()
 
 def get_marketing_data():
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql_query("SELECT * FROM marketing_stats WHERE id='global'", conn)
     conn.close()
-    return df.iloc[0].to_dict()
+    return df.iloc.to_dict()
 
 def add_new_lead_from_student(name, phone, course_title, district, current_status, cnc_tag, cad_tag):
     conn = sqlite3.connect(DB_NAME)
@@ -135,9 +133,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 4. АКТИВНЫЕ KPI КЛЮЧИ НА ГЛАВНОЙ СТРАНИЦЕ (ТО, ЧТО БЫЛО «МЕРТВЫМ»)
-# ==============================================================================
+# Живые b2b-метрики подтягиваются из общей БД
 conn = sqlite3.connect(DB_NAME)
 total_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads", conn).loc[0, 'cnt']
 unlocked_leads_count = pd.read_sql_query("SELECT COUNT(*) as cnt FROM leads WHERE status='Разблокирован'", conn).loc[0, 'cnt']
@@ -155,7 +151,7 @@ with k_col1:
     if st.button(f"🏢 Заводов в системе\n\n {len(factories_data)} предприятий", use_container_width=True):
         st.session_state["active_kpi_tab"] = "factories"
 with k_col2:
-    if st.button(f"🎓 Студентов учится\n\n {m_stats['views']:,} человек", use_container_width=True):
+    if st.button(f"🎓 Студентов учатся\n\n {m_stats['views']:,} человек", use_container_width=True):
         st.session_state["active_kpi_tab"] = "students"
 with k_col3:
     if st.button(f"📝 Всего выпускников\n\n {int(total_leads_count)} человек", use_container_width=True):
@@ -164,7 +160,7 @@ with k_col4:
     if st.button(f"🤝 Подобрано сотрудников\n\n {int(unlocked_leads_count)} человек", use_container_width=True):
         st.session_state["active_kpi_tab"] = "hired"
 
-# РЕНДЕРИНГ ДИНАМИЧЕСКИХ ДАННЫХ ПРИ КЛИКЕ НА KPI КАРТОЧКИ
+# РЕНДЕРИНГ ДИНАМИЧЕСКИХ ДАННЫХ ПРИ КЛИКЕ НА KPI КАРТОЧКИ (ОТСТУПЫ СТРОГО ВЫРОВНЕНЫ)
 if st.session_state["active_kpi_tab"] == "factories":
     st.info("📊 Распределение индустриальных партнеров АПП по районам Санкт-Петербурга:")
     st.dataframe(factories_data[['name', 'district', 'vacancies_count']], use_container_width=True, hide_index=True)
@@ -179,3 +175,12 @@ elif st.session_state["active_kpi_tab"] == "leads":
     conn.close()
     st.dataframe(leads_view, use_container_width=True, hide_index=True)
 elif st.session_state["active_kpi_tab"] == "hired":
+    st.success(f"💳 Коммерческий успех платформы: {int(unlocked_leads_count)} прямых b2b-контрактов заключено через систему CPA.")
+
+st.write("---")
+
+# ==============================================================================
+# --- ИНТЕРФЕЙС: ЗАВОД (B2B) ---
+# ==============================================================================
+if user_role == "🏢 Для заводов и производств":
+    st.header("🏢 Кабинет отдела кадров предприятия")
