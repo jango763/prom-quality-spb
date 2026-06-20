@@ -6,7 +6,7 @@ import io
 import html
 
 # ==============================================================================
-# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И УТВЕРЖДЕННЫЕ СТИЛИ (Прошлый b2b-дизайн)
+# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И УТВЕРЖДЕННЫЕ СТИЛИ (Дизайн без изменений)
 # ==============================================================================
 st.set_page_config(page_title="ПромКачество.СПб | Система Допусков", layout="wide", page_icon="🏭")
 
@@ -47,9 +47,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (SQLite в режиме WAL — Автономность и стабильность)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ (Абсолютно чистая финальная СУБД для защиты от KeyError)
 # ==============================================================================
-DB_NAME = "production_control.db"
+DB_NAME = "production_control_final.db"
 
 def dict_factory(cursor, row):
     d = {}
@@ -62,11 +62,9 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute("PRAGMA journal_mode=WAL;")
     
-    cursor.execute("DROP TABLE IF EXISTS courses;")
-    cursor.execute("DROP TABLE IF EXISTS citizens;")
-    
+    # Создание структуры таблиц с нуля
     cursor.execute("""
-        CREATE TABLE courses (
+        CREATE TABLE IF NOT EXISTS courses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             factory_name TEXT,
             course_title TEXT,
@@ -82,7 +80,7 @@ def init_db():
     """)
     
     cursor.execute("""
-        CREATE TABLE citizens (
+        CREATE TABLE IF NOT EXISTS citizens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fio TEXT,
             phone TEXT,
@@ -95,20 +93,22 @@ def init_db():
         )
     """)
     
-    cursor.execute("""
-        INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) 
-        VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 
-        'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1,
-        'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')
-    """)
-    
-    cursor.executemany("""
-        INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id, is_contract_signed, sim_passed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, [
-        ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный специалист", 1, 1, 1),
-        ("Смирнов Кирилл Михайлович", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1, 1, 0),
-        ("Иванов Игорь Игоревич", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1, 0, 0)
-    ])
+    cursor.execute("SELECT COUNT(*) FROM courses")
+    if cursor.fetchone() == 0:
+        cursor.execute("""
+            INSERT INTO courses (factory_name, course_title, equipment_model, safety_instructions, district, tag_cnc, tag_robot, tag_hydro, secret_question, secret_answer) 
+            VALUES ('АО «Кировский завод»', 'Цифровые стандарты безопасности «ПромКачество»', 'ЧПУ серии ИТ-42 (стойка Syntec)', 
+            'ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ ЗАВОДА:\n1. Перед стартом проверить уровень масла в баке гидропривода.\n2. Критическое давление пресса и зажимных гидроцилиндров — выше 5 МПа.\n3. Использование быстрого позиционирования G00 в зоне резания категорически запрещено во избежание аварии на станке стоимостью 20 млн+.', 'Кировский район', 1, 0, 1,
+            'Какое давление в гидросистеме является критическим для пресса?', 'Выше 5 МПа')
+        """)
+        
+        cursor.executemany("""
+            INSERT INTO citizens (fio, phone, district, current_education, current_status, course_id, is_contract_signed, sim_passed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, [
+            ("Никифоров Артур Владимирович", "+7(921)555-44-33", "Кировский район", "Высшее техническое", "Железный специалист", 1, 1, 1),
+            ("Смирнов Кирилл Михайлович", "+7(911)888-77-66", "Калининский район", "Среднее профессиональное", "Направлен на практику", 1, 1, 0),
+            ("Иванов Игорь Игоревич", "+7(900)111-22-33", "Приморский район", "Неполное высшее", "Обучение", 1, 0, 0)
+        ])
     conn.commit()
     conn.close()
 
@@ -130,7 +130,7 @@ def fetch_all_from_db(query, params=()):
     return res
 
 # ==============================================================================
-# 3. НАВИГАЦИЯ И БЕЗОПАСНАЯ СЕССИЯ (Сайдбар)
+# 3. НАВИГАЦИЯ И СЕССИОННЫЙ СЛОЙ (Сайдбар)
 # ==============================================================================
 with st.sidebar:
     st.title("🔒 Контур Допусков АПП")
@@ -140,7 +140,7 @@ with st.sidebar:
     )
     st.write("---")
     
-    # Сеанс из базы данных — исключает затирание переменных и белый экран
+    # Безопасное чтение сессии
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = dict_factory
     citizens_session_list = conn.execute("SELECT id, fio, current_status FROM citizens").fetchall()
@@ -148,7 +148,7 @@ with st.sidebar:
     
     st.caption("👤 Активный сеанс соискателя:")
     user_map = {f"{c['fio']} [{c['current_status']}]": c['id'] for c in citizens_session_list}
-    selected_user_label = st.selectbox("Переключение сессий со сцены:", list(user_map.keys()))
+    selected_user_label = st.selectbox("Переключение профилей:", list(user_map.keys()))
     active_student_id = user_map[selected_user_label]
 
 st.markdown("""
