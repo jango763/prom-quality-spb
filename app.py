@@ -231,5 +231,11 @@ if user_role == "🎓 Личный кабинет Физического лиц�
             "Снизить обороты шпинделя вручную на 20%"
         ], index=None)
         
-        if st.form_submit_button("Отправить ответы экзамена", type="primary"):
             if ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
+                conn = sqlite3.connect(DB_NAME)
+                conn.execute("UPDATE citizens SET current_status = 'Железный специалист' WHERE phone = ?", (c_phone.strip(),))
+                conn.commit()
+                conn.close()
+                st.success("🎯 Ответ верен! Вам присвоен статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
+            else:
+                st.error("❌ Алгоритм неверен! Допуск к оборудованию заблокирован автоматикой платформы.")
