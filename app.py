@@ -1,183 +1,176 @@
-import sys
-import os
-
-# Защита от ModuleNotFoundError на удаленном сервере
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
 import streamlit as st
-import pandas as pd
+import streamlit.components.v1 as components
 import sqlite3
-import io
+import json
 
-# Импортируем нашу трехкабинетную СУБД структуру
-import db_layer
+# Скрываем стандартные элементы оформления Streamlit, чтобы развернуть CodePen во весь экран
+st.markdown("""
+    <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        .block-container {padding: 0px !important; margin: 0px !important; max-width: 100% !important;}
+        iframe {border: none !important; width: 100% !important; min-height: 100vh !important;}
+    </style>
+""", unsafe_allow_html=True)
 
-# Инициализация структуры таблиц базы данных
-db_layer.init_db()
+# Имя нашей базы данных под новые расширенные поля
+DB_NAME = "production_control_enterprise_v2.db"
 
-# ==============================================================================
-# 1. СИНХРОНИЗАЦИЯ СТИЛЕЙ И JS ИЗ CODEPEN (myREwOO)
-# ==============================================================================
-if os.path.exists("styles.css"):
-    with open("styles.css", "r", encoding="utf-8") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-# Считываем html баннер и подключаем js
-html_banner = ""
-if os.path.exists("layout.html"):
-    with open("layout.html", "r", encoding="utf-8") as f:
-        html_banner = f.read()
-
-js_script = ""
-if os.path.exists("script.js"):
-    with open("script.js", "r", encoding="utf-8") as f:
-        js_script = f.read()
-
-st.markdown(f"{html_banner}<script>{js_script}</script>", unsafe_allow_html=True)
-
-# ==============================================================================
-# 2. ОФИЦИАЛЬНАЯ НАВИГАЦИЯ АПП (Сайдбар)
-# ==============================================================================
-with st.sidebar:
-    st.title("🔒 Контур Допусков АПП")
-    user_role = st.selectbox(
-        "Выберите ваш личный кабинет:",
-        [
-            "🎓 Личный кабинет Физического лица", 
-            "🏢 Личный кабинет Производства", 
-            "🛠️ Кабинет Ассоциации (Управление)"
-        ]
-    )
-    st.write("---")
-    st.caption("Промышленная ИТ-платформа Санкт-Петербурга")
-
-# Вытягиваем свежие данные из базы данных v5
-courses_list = db_layer.execute_read("SELECT * FROM courses")
-citizens_list = db_layer.execute_read("SELECT * FROM citizens")
-factories_list = db_layer.execute_read("SELECT * FROM factories")
-transactions_list = db_layer.execute_read("SELECT * FROM transactions")
-
-# Глобальные счетчики KPI АПП
-kpi1, kpi2, kpi3 = st.columns(3)
-kpi1.metric(label="Развернуто b2b-стандартов", value=f"{len(courses_list)} моделей")
-kpi2.metric(label="Зарегистрировано граждан", value=f"{len(citizens_list)} анкет")
-kpi3.metric(label="Активных заводов-заказчиков", value=f"{len(factories_list)} предприятий")
-st.write("---")
-
-# ==============================================================================
-# КОНТУР 1: ФИЗИЧЕСКИЕ ЛИЦА (СОИСКАТЕЛИ)
-# ==============================================================================
-if user_role == "🎓 Личный кабинет Физического лица":
-    st.header("🎓 Личный кабинет Физического лица")
+def init_db():
+    """Инициализация базы данных SQLite со всеми полями под 3 кабинета"""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL;")
     
-    # Форма анкеты в стиле Glassmorphism
-    st.markdown('<div class="glass-form">', unsafe_allow_html=True)
-    with st.form("citizen_profile_form"):
-        st.subheader("📝 Профильная анкета и загрузка документов")
-        c_fio = st.text_input("ФИО полностью:", value="Иванов Игорь Игоревич")
-        c_phone = st.text_input("Номер телефона:", value="+7(900)111-22-33")
-        c_email = st.text_input("E-mail:", value="ivanov@spb.ru")
-        c_edu_place = st.text_input("Где учились (ВУЗ / Колледж):", value="СПбПУ")
-        
-        col_doc1, col_doc2, col_doc3 = st.columns(3)
-        c_passport = col_doc1.text_input("Паспорт (Серия, Номер):")
-        c_diploma = col_doc2.text_input("Диплом (Серия, Номер):")
-        c_workbook = col_doc3.text_input("Трудовая книжка (Номер):")
-        
-        c_skills = st.text_area("Расскажите о ваших навыках и опыте работы:")
-        c_gdpr = st.checkbox("Согласие на обработку персональных данных граждан РФ", value=True)
-        
-        if st.form_submit_button("Сохранить анкету соискателя", use_container_width=True):
-            if c_fio.strip() and c_phone.strip():
-                # Проверяем, есть ли уже такой телефон
-                check_user = db_layer.execute_read("SELECT id FROM citizens WHERE phone = ?", (c_phone.strip(),))
-                if not check_user:
-                    db_layer.execute_write("""
-                        INSERT INTO citizens (fio, phone, email, district, skills_about, education_place, passport_serial_num, diploma_serial_num, workbook_serial_num, gdpr_consent) 
-                        VALUES (?, ?, ?, 'Кировский район', ?, ?, ?, ?, ?, ?)
-                    """, (c_fio.strip(), c_phone.strip(), c_email.strip(), c_skills.strip(), c_edu_place.strip(), c_passport.strip(), c_diploma.strip(), c_workbook.strip(), 1 if c_gdpr else 0))
-                st.success("Анкета успешно зафиксирована в СУБД!")
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Тест компетенций
-    st.markdown('<div class="glass-form">', unsafe_allow_html=True)
-    with st.form("competence_test_form"):
-        st.subheader("🤖 Тест компетенций на производстве")
-        st.markdown("**КРИТИЧЕСКАЯ СИТУАЦИЯ:** Датчик стойки управления Syntec выдал перегрев шпинделя станка ЧПУ за 20 млн рублей. Ваши действия?")
-        sim_ans = st.radio("Выберите правильный алгоритм действий:", [
-            "Игнорировать и закончить деталь",
-            "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера",
-            "Снизить обороты шпинделя вручную на 20%"
-        ], index=None)
-        
-        if st.form_submit_button("Отправить ответы экзамена", use_container_width=True):
-            if sim_ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
-                db_layer.execute_write("UPDATE citizens SET competence_test_score = 100, current_status = 'Железный специалист' WHERE phone = '+7(900)111-22-33'")
-                st.success("🎯 Ответ верный! Вам присвоен статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
-                st.rerun()
-            else:
-                st.error("⚠️ Ошибка! Алгоритм неверен, зафиксирована авария шпинделя.")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ==============================================================================
-# КОНТУР 2: ЮРИДИЧЕСКИЕ ЛИЦА (ПРОИЗВОДСТВА)
-# ==============================================================================
-elif user_role == "🏢 Личный кабинет Производства":
-    st.header("🏢 Личный кабинет Завода-Производителя оборудования")
+    # Таблица граждан
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS citizens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fio TEXT, phone TEXT, email TEXT, education TEXT,
+            passport TEXT, diploma TEXT, workbook TEXT, skills TEXT,
+            gdpr INTEGER DEFAULT 0, score INTEGER DEFAULT 0, status TEXT DEFAULT 'Обучение'
+        )
+    """)
     
-    # Отрисовка объемных b2b-карточек тарифов из CodePen
-    col_card1, col_card2, col_card3 = st.columns(3)
-    with col_card1:
-        st.markdown('<div class="glass-card"><div class="card-title">ТЕКУЩИЙ ТАРИФ</div><div class="card-value">ПОШТУЧНЫЙ ВЫКУП</div></div>', unsafe_allow_html=True)
-    with col_card2:
-        st.markdown('<div class="glass-card"><div class="card-title">ОСТАТОК АНКЕТ</div><div class="card-value" style="color: #3B82F6;">5 ШТ.</div></div>', unsafe_allow_html=True)
-    with col_card3:
-        st.markdown('<div class="glass-card"><div class="card-title">БЕЗЛИМИТНЫЙ ДОСТУП</div><div class="card-value" style="color: #EF4444;">❌ ВЫКЛ.</div></div>', unsafe_allow_html=True)
-
-    tab_tariffs, tab_upload_dpo = st.tabs(["💳 Тарифная сетка и покупка лицензии", "📥 Загрузка b2b-стандарта ДПО"])
+    # Таблица стандартов ДПО от заводов
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            inn TEXT, title TEXT, model TEXT, text TEXT
+        )
+    """)
     
-    with tab_tariffs:
-        st.markdown('<div class="glass-form">', unsafe_allow_html=True)
-        st.subheader("💳 Доступные коммерческие лицензии АПП:")
-        col_t1, col_t2 = st.columns(2)
-        with col_t1:
-            st.markdown('<div class="tariff-box"><h5>📦 Штучный пакет</h5><p class="price">15 000 ₽</p><p class="desc">Доступ к 5 проверенным анкетам соискателей</p></div>', unsafe_allow_html=True)
-            if st.button("Купить штучный пакет", key="buy_pack", use_container_width=True):
-                db_layer.execute_write("INSERT INTO transactions (factory_id, amount, payment_type) VALUES (2, 15000.0, '5_Анкет')")
-                st.toast("Пакет куплен! Проводка отправлена в АПП.")
-        with col_t2:
-            st.markdown('<div class="tariff-box popular"><h5>⚔️ Безлимитный Год</h5><p class="price">150 000 ₽</p><p class="desc">Полный безлимит на выгрузку "Железных мастеров"</p></div>', unsafe_allow_html=True)
-            if st.button("Активировать Безлимит", key="buy_unlim", use_container_width=True, type="primary"):
-                db_layer.execute_write("INSERT INTO transactions (factory_id, amount, payment_type) VALUES (1, 150000.0, 'Безлимит_Год')")
-                st.toast("Безлимит активирован! Проводка отправлена в АПП.")
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Таблица транзакций (подписок)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tariff TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# ==============================================================================
+# ОБЪЕДИНЕННЫЙ КОД ИЗ CODEPEN: HTML + CSS + JS (Интеграция Untitled)
+# ==============================================================================
+html_code = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>ПромКачество.СПб</title>
+    <style>
+        /* --- CSS КОД ИЗ ВАШЕГО CODEPEN --- */
+        * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background-color: #0B0F19 !important; color: #F8FAFC !important; margin: 0; padding: 0; }
+        .cyber-app-container { display: flex; min-height: 100vh; }
         
-    with tab_upload_dpo:
-        st.markdown('<div class="glass-form">', unsafe_allow_html=True)
-        with st.form("factory_dpo_form"):
-            st.subheader("📥 Загрузка b2b-стандарта ДПО")
-            f_inn = st.text_input("ИНН предприятия:")
-            f_title = st.text_input("Название программы обучения:")
-            f_model = st.text_input("Модель промышленного станка:")
-            f_text = st.text_area("Введите развернутые пошаговые инструкции и регламенты безопасности:")
-            
-            if st.form_submit_button("Опубликовать стандарт завода", use_container_width=True):
-                if f_inn.strip() and f_title.strip():
-                    db_layer.execute_write("""
-                        INSERT INTO courses (factory_id, course_title, equipment_model, safety_instructions, secret_question, secret_answer) 
-                        VALUES (1, ?, ?, ?, 'Какое давление критическое?', 'Выше 5 МПа')
-                    """, (f_title.strip(), f_model.strip(), f_text.strip()))
-                    st.success("Стандарт завода успешно зафиксирован в SQLite!")
-                    st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        .cyber-sidebar {
+            width: 320px; background: #0D1322; border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 30px 20px; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .sidebar-header { display: flex; align-items: center; gap: 10px; }
+        .cyber-sidebar h2 { font-size: 20px; font-weight: 800; color: #10B981; margin: 0; text-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+        .cyber-pulse-dot { width: 8px; height: 8px; background-color: #10B981; border-radius: 50%; box-shadow: 0 0 10px #10B981; }
+        .role-selector-box label { font-size: 13px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .role-selector-box select { width: 100%; padding: 12px; background: #111827; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: #F8FAFC; font-weight: 600; margin-top: 8px; cursor: pointer; }
+        .sidebar-footer { font-size: 12px; color: #475569; font-weight: 600; }
 
-# ==============================================================================
-# КОНТУР 3: АССОЦИАЦИЯ (УПРАВЛЕНИЕ)
-# ==============================================================================
-elif user_role == "🛠️ Кабинет Ассоциации (Управление)":
-    st.header("🛠️ Пульт Оперативного Контроля АПП СПб")
-    
-    # Сеткa KPI Ассоциации
+        .cyber-main { flex-grow: 1; padding: 30px; max-width: 1200px; }
+        .hero-banner { background: linear-gradient(135deg, #0F172A 0%, #111827 100%) !important; padding: 35px; border-radius: 16px; color: #FFFFFF; margin-bottom: 25px; border-left: 8px solid #10B981; box-shadow: 0 0 25px rgba(16, 185, 129, 0.15); }
+        .hero-title { font-size: 28px; font-weight: 800; background: linear-gradient(90deg, #10B981, #34D399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero-subtitle { font-size: 14px; color: #94A3B8; margin-top: 8px; line-height: 1.4; }
+
+        .cyber-panel { display: none; width: 100%; }
+        .cyber-panel h3 { font-size: 22px; font-weight: 700; color: #F8FAFC; margin-bottom: 20px; }
+        .glass-form { background: rgba(17, 24, 39, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 14px; padding: 25px; margin-bottom: 20px; backdrop-filter: blur(12px); }
+        .glass-form h4 { margin-top: 0; margin-bottom: 20px; font-size: 16px; color: #34D399; font-weight: 700; }
+        
+        .form-grid, .form-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; }
+        .glass-card { background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 20px; }
+        .card-title { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+        .card-value { font-size: 24px; font-weight: 800; color: #10B981; margin-top: 5px; }
+        
+        .tariff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .tariff-box { background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; text-align: center; }
+        .tariff-box.popular { border-color: #10B981; background: rgba(16, 185, 129, 0.02); box-shadow: 0 0 20px rgba(16, 185, 129, 0.05); }
+        .price { font-size: 36px; font-weight: 900; color: #10B981; margin: 10px 0; }
+        .desc { font-size: 13px; color: #94A3B8; }
+
+        input, textarea, select { width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #F8FAFC; font-size: 14px; margin-bottom: 10px; }
+        input:focus, textarea:focus { border-color: #10B981; outline: none; box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
+        .question { font-weight: 600; color: #E2E8F0; }
+        .radio-group label { display: block; padding: 10px; background: rgba(255, 255, 255, 0.02); margin-top: 8px; border-radius: 6px; cursor: pointer; }
+        .checkbox-line { display: flex; align-items: center; gap: 8px; }
+        .checkbox-line input { width: auto; margin: 0; }
+
+        .cyber-btn, .cyber-btn-buy { background: linear-gradient(90deg, #10B981, #059669); border: none; color: white; padding: 12px 24px; font-weight: 700; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2); transition: transform 0.2s; width: 100%; }
+        .cyber-btn:hover, .cyber-btn-buy:hover { transform: translateY(-2px); }
+
+        .cyber-table-container { overflow-x: auto; }
+        .cyber-table { width: 100%; border-collapse: collapse; }
+        .cyber-table th, .cyber-table td { padding: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); text-align: left; }
+        .cyber-table th { color: #64748B; font-size: 13px; text-transform: uppercase; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: #10B981; }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: #F59E0B; }
+        .mt-3 { margin-top: 20px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="cyber-app-container">
+  <aside class="cyber-sidebar">
+    <div class="sidebar-header">
+      <h2>🔒 КОНТУР АПП</h2>
+      <div class="cyber-pulse-dot"></div>
+    </div>
+    <div class="role-selector-box">
+      <label>Выберите личный кабинет:</label>
+      <select id="role-selector">
+        <option value="citizen">🎓 Личный кабинет Физического лица</option>
+        <option value="factory">🏢 Личный кабинет Производства</option>
+        <option value="association">🛠️ Кабинет Ассоциации (Управление)</option>
+      </select>
+    </div>
+    <div class="sidebar-footer">ПромКачество.СПб v2.0</div>
+  </aside>
+
+  <main class="cyber-main">
+    <div class="hero-banner" id="cyber-banner">
+      <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
+      <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ</div>
+    </div>
+
+    <!-- КОНТУР 1: ФИЗИЧЕСКИЕ ЛИЦА -->
+    <section id="panel-citizen" class="cyber-panel">
+      <h3>🎓 Портал обучения и Паспорт Навыков</h3>
+      <div class="glass-form">
+        <h4>📝 Профильная анкета и загрузка документов</h4>
+        <div class="form-grid">
+          <input type="text" id="c_fio" placeholder="ФИО полностью" value="Иванов Игорь Игоревич">
+          <input type="text" id="c_phone" placeholder="Номер телефона" value="+7(900)111-22-33">
+          <input type="email" id="c_email" placeholder="E-mail" value="ivanov@spb.ru">
+          <input type="text" id="c_edu" placeholder="Где учились" value="СПбПУ">
+        </div>
+        <div class="form-grid mt-3">
+          <input type="text" id="c_pass" placeholder="Паспорт (Серия, Номер)">
+          <input type="text" id="c_diploma" placeholder="Диплом (Серия, Номер)">
+          <input type="text" id="c_work" placeholder="Трудовая книжка (Номер)">
+        </div>
+        <div style="margin-top: 15px;">
+          <textarea id="c_skills" placeholder="Расскажите о ваших навыках и опыте работы..."></textarea>
+        </div>
+        <div class="checkbox-line">
+          <input type="checkbox" id="c_gdpr" checked>
+          <label for="c_gdpr">Согласие на обработку персональных данных граждан РФ</label>
+        </div>
+        <button class="cyber-btn mt-3" onclick="saveCitizen()">Сохранить анкету соискателя</button>
+      </div>
+
+      <div class="glass-form mt-3">
+        <h4>🤖 Тест компетенций на производстве</h4>
