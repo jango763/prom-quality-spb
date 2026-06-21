@@ -1,14 +1,25 @@
-import streamlit as st
+import sys
 import os
 
-# Импортируем промышленный слой данных SQLite
+# ПРИНУДИТЕЛЬНОЕ ИСПРАВЛЕНИЕ MODULENOTFOUNDERROR: добавляем пути репозитория в sys.path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+src_dir = os.path.join(current_dir, "src")
+if os.path.exists(src_dir) and src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+import streamlit as st
+import sqlite3
+
+# Теперь импорт гарантированно отработает без ошибок на сервере
 import db_layer
 
 # Инициализация структуры СУБД с нуля
 db_layer.init_db()
 
 # ==============================================================================
-# 1. СКВОЗНОЙ ПОДКЛЮЧЕНИЕ СТИЛЕЙ И JS (CodePen: myREwOO)
+# 1. СКВОЗНОЕ ПОДКЛЮЧЕНИЕ СТИЛЕЙ И JS (CodePen: myREwOO)
 # ==============================================================================
 # Чтение и инъекция CSS
 if os.path.exists("styles.css"):
@@ -34,7 +45,6 @@ with st.sidebar:
 # ==============================================================================
 # 3. ИНЪЕКЦИЯ КАСТОМНОГО HTML И JAVASCRIPT
 # ==============================================================================
-# Рендерим HTML-баннер и подключаем JS-скрипт в один поток
 html_content = ""
 if os.path.exists("layout.html"):
     with open("layout.html", "r", encoding="utf-8") as f:
@@ -56,7 +66,7 @@ courses_res = db_layer.execute_read("SELECT COUNT(*) as cnt FROM courses")
 citizens_res = db_layer.execute_read("SELECT COUNT(*) as cnt FROM citizens")
 factories_res = db_layer.execute_read("SELECT COUNT(*) as cnt FROM factories")
 
-# Защита от пустых ответов базы данных
+# Вытаскиваем значения из списков словарей
 count_courses = courses_res[0]['cnt'] if courses_res else 0
 count_citizens = citizens_res[0]['cnt'] if citizens_res else 0
 count_factories = factories_res[0]['cnt'] if factories_res else 0
