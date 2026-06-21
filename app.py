@@ -224,6 +224,9 @@ if user_role == "🎓 Личный кабинет Физического лиц�
     # Блок теста компетенций
     with st.form("test_form"):
         st.markdown("<h4 style='color:#34D399; font-weight:700;'>🤖 Тест компетенций на производстве</h4>", unsafe_allow_html=True)
+    # Блок теста компетенций
+    with st.form("test_form"):
+        st.markdown("<h4 style='color:#34D399; font-weight:700;'>🤖 Тест компетенций на производстве</h4>", unsafe_allow_html=True)
         st.markdown("**КЕЙС:** Критическая аварийная ситуация: Датчик стойки управления Syntec выдал перегрев шпинделя станка ЧПУ за 20 млн рублей. Ваши действия?")
         ans = st.radio("Выберите правильный алгоритм действий:", [
             "Игнорировать и закончить деталь",
@@ -231,11 +234,12 @@ if user_role == "🎓 Личный кабинет Физического лиц�
             "Снизить обороты шпинделя вручную на 20%"
         ], index=None)
         
+        if st.form_submit_button("Отправить ответы экзамена", type="primary"):
             if ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
                 conn = sqlite3.connect(DB_NAME)
                 conn.execute("UPDATE citizens SET current_status = 'Железный специалист' WHERE phone = ?", (c_phone.strip(),))
                 conn.commit()
                 conn.close()
-                st.success("🎯 Ответ верен! Вам присвоен статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
+                st.success("🎯 Ответ верен! Вам присвоен наивысший статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
             else:
                 st.error("❌ Алгоритм неверен! Допуск к оборудованию заблокирован автоматикой платформы.")
