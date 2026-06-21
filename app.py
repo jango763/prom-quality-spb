@@ -3,7 +3,7 @@
   <!-- Сайдбар управления ролями -->
   <aside class="cyber-sidebar">
     <div class="sidebar-header">
-      <h2>🔒 КОНТУР АПП</h2>
+      st.markdown("<h2>🔒 КОНТУР АПП</h2>", unsafe_allow_html=True)
       <div class="cyber-pulse-dot"></div>
     </div>
     <div class="role-selector-box">
