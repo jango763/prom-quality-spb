@@ -1,127 +1,8 @@
-import streamlit as st
-import streamlit.components.v1 as components
-import sqlite3
-
-# Скрываем стандартную оболочку Streamlit, освобождая экран под дизайн CodePen
-st.markdown("""
-    <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        .block-container {padding: 0px !important; margin: 0px !important; max-width: 100% !important;}
-        iframe {border: none !important; width: 100% !important; min-height: 100vh !important;}
-    </style>
-""", unsafe_allow_html=True)
-
-# Инициализация расширенной СУБД SQLite
-DB_NAME = "production_control_enterprise_v5.db"
-
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL;")
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT, phone TEXT, email TEXT, edu TEXT,
-            passport TEXT, diploma TEXT, workbook TEXT, skills TEXT, status TEXT DEFAULT 'Обучение'
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            inn TEXT, title TEXT, model TEXT, text TEXT
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tariff TEXT, amount REAL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# ==============================================================================
-# ПЕРЕХВАТ ДАННЫХ ИЗ ФРОНТЕНДА ЧЕРЕЗ БЕЗОПАСНЫЙ URL QUERY-МОСТ
-# ==============================================================================
-query_params = st.query_params
-
-if "action" in query_params:
-    action = query_params["action"]
-    
-    # 1. Запись полной b2c-анкеты соискателя гражданина РФ
-    if action == "citizen_reg":
-        conn = sqlite3.connect(DB_NAME)
-        conn.execute("""
-            INSERT INTO citizens (fio, phone, email, edu, passport, diploma, workbook, skills) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (query_params.get("fio"), query_params.get("phone"), query_params.get("email"), query_params.get("edu"),
-              query_params.get("pass"), query_params.get("diploma"), query_params.get("work"), query_params.get("skills")))
-        conn.commit()
-        conn.close()
-        st.toast(f"🏭 Бэкенд: Успешно сохранена анкета {query_params.get('fio')}!")
-        
-    # 2. Обработка теста компетенций
-    elif action == "submit_test":
-        is_correct = (query_params.get("q1") == "correct")
-        conn = sqlite3.connect(DB_NAME)
-        if is_correct:
-            conn.execute("UPDATE citizens SET status = 'Железный специалист' WHERE id = (SELECT max(id) FROM citizens)")
-            st.toast("🎯 Экзамен сдан! Кандидату присвоен статус 'Железный специалист'")
-        else:
-            st.toast("⚠️ Виртуальная авария шпинделя! Тест провален.")
-        conn.commit()
-        conn.close()
-        
-    # 3. Фиксация покупки безлимитных / поштучных тарифов заводов
-    elif action == "buy_tariff":
-        t_type = query_params.get("tariff")
-        amt = 150000.0 if t_type == "unlimit" else 15000.0
-        conn = sqlite3.connect(DB_NAME)
-        conn.execute("INSERT INTO payments (tariff, amount) VALUES (?, ?)", (t_type, amt))
-        conn.commit()
-        conn.close()
-        st.toast(f"💳 Проведена транзакция пакета {t_type} на сумму {amt:,.0f} ₽!")
-        
-    # 4. Сохранение b2b-стандартов обучения ДПО
-    elif action == "upload_dpo":
-        conn = sqlite3.connect(DB_NAME)
-        conn.execute("""
-            INSERT INTO courses (inn, title, model, text) VALUES (?, ?, ?, ?)
-        """, (query_params.get("inn"), query_params.get("title"), query_params.get("model"), query_params.get("text")))
-        conn.commit()
-        conn.close()
-        st.toast("📥 Стандарт ДПО успешно опубликован в базе АПП!")
-
-    # Мгновенно зачищаем URL, чтобы избежать бесконечного зацикливания СУБД при обновлении страницы
-    active_panel = query_params.get("panel", "citizen")
-    st.query_params.clear()
-    st.query_params["panel"] = active_panel
-
-# Извлекаем агрегированные данные из базы для вывода в шапку и таблицы Ассоциации
-conn = sqlite3.connect(DB_NAME)
-c_list = conn.execute("SELECT * FROM citizens").fetchall()
-co_list = conn.execute("SELECT * FROM courses").fetchall()
-p_list = conn.execute("SELECT * FROM payments").fetchall()
-conn.close()
-
-total_phys_val = len(c_list) if c_list else 1420
-total_revenue_val = sum(p[2] for p in p_list) if p_list else 165000
-
-# Определяем, какую вкладку отобразить активной на основе сессии Streamlit
-current_panel = st.query_params.get("panel", "citizen")
-
-# ==============================================================================
-# ТОЧНАЯ ПИКСЕЛЬНАЯ КИБЕРПАНК-КОПИЯ ВЕРСТКИ С CODEPEN (Используем чистый r"")
-# ==============================================================================
-html_code = r"""
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <title>ПромКачество.СПб</title>
     <style>
         * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
         body { background-color: #0B0F19 !important; color: #F8FAFC !important; margin: 0; padding: 0; overflow-x: hidden; }
@@ -173,3 +54,92 @@ html_code = r"""
         .cyber-table-container { overflow-x: auto; }
         .cyber-table { width: 100%; border-collapse: collapse; }
         .cyber-table th, .cyber-table td { padding: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); text-align: left; }
+        .cyber-table th { color: #64748B; font-size: 13px; text-transform: uppercase; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: #10B981; }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: #F59E0B; }
+        .mt-3 { margin-top: 20px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="cyber-app-container">
+  <aside class="cyber-sidebar">
+    <div class="sidebar-header">
+      <h2>🔒 КОНТУР АПП</h2>
+      <div class="cyber-pulse-dot"></div>
+    </div>
+    <div class="role-selector-box">
+      <label>Выберите личный кабинет:</label>
+      <select id="role-selector" onchange="window.parent.location.href=window.parent.location.pathname+'?panel='+this.value">
+        <option value="citizen" [SEL_CITIZEN]>🎓 Личный кабинет Физического лица</option>
+        <option value="factory" [SEL_FACTORY]>🏢 Личный кабинет Производства</option>
+        <option value="association" [SEL_ASSOCIATION]>🛠️ Кабинет Ассоциации (Управление)</option>
+      </select>
+    </div>
+    <div class="sidebar-footer">ПромКачество.СПб v2.0</div>
+  </aside>
+
+  <main class="cyber-main">
+    <div class="hero-banner" id="cyber-banner">
+      <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
+      <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ</div>
+    </div>
+
+    <!-- КАБИНЕТ №1 -->
+    <section id="panel-citizen" class="cyber-panel [ACT_CITIZEN]">
+      <h3>🎓 Портал обучения и Паспорт Навыков</h3>
+      <form method="get" target="_parent" class="glass-form">
+        <input type="hidden" name="action" value="citizen_reg">
+        <input type="hidden" name="panel" value="citizen">
+        <h4>📝 Профильная анкетa и загрузка документов</h4>
+        <div class="form-grid">
+          <input type="text" name="fio" placeholder="ФИО полностью" value="Иванов Игорь Игоревич" required>
+          <input type="text" name="phone" placeholder="Номер телефона" value="+7(900)111-22-33" required>
+          <input type="email" name="email" placeholder="E-mail" value="ivanov@spb.ru">
+          <input type="text" name="edu" placeholder="Где учились" value="СПбПУ">
+        </div>
+        <div class="form-grid mt-3">
+          <input type="text" name="pass" placeholder="Паспорт (Серия, Номер)">
+          <input type="text" id="diploma" name="diploma" placeholder="Диплом (Серия, Номер)">
+          <input type="text" id="work" name="work" placeholder="Трудовая книжка (Номер)">
+        </div>
+        <div style="margin-top: 15px;">
+          <textarea name="skills" placeholder="Расскажите о ваших навыках и опыте работы..."></textarea>
+        </div>
+        <div class="checkbox-line">
+          <input type="checkbox" id="gdpr_chk" checked required>
+          <label for="gdpr_chk">Согласие на обработку персональных данных граждан РФ</label>
+        </div>
+        <button type="submit" class="cyber-btn mt-3">Сохранить анкету соискателя</button>
+      </form>
+
+      <form method="get" target="_parent" class="glass-form mt-3">
+        <input type="hidden" name="action" value="submit_test">
+        <input type="hidden" name="panel" value="citizen">
+        <h4>🤖 Тест компетенций на производстве</h4>
+        <p class="question">Критическая аварийная ситуация: Датчик стойки управления Syntec выдал перегрев шпинделя станка ЧПУ за 20 млн рублей. Ваши действия?</p>
+        <div class="radio-group">
+          <label><input type="radio" name="q1" value="wrong1"> Игнорировать и закончить деталь</label>
+          <label><input type="radio" name="q1" value="correct" checked> Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера</label>
+          <label><input type="radio" name="q1" value="wrong2"> Снизить обороты шпинделя вручную на 20%</label>
+        </div>
+        <button type="submit" class="cyber-btn mt-3">Отправить ответы экзамена</button>
+      </form>
+    </section>
+
+    <!-- КАБИНЕТ №2 -->
+    <section id="panel-factory" class="cyber-panel [ACT_FACTORY]">
+      <h3>🏢 Кабинет Завода-Производителя оборудования</h3>
+      <div class="form-grid-3">
+        <div class="glass-card"><div class="card-title">ТЕКУЩИЙ ТАРИФ</div><div class="card-value">ПОШТУЧНЫЙ ВЫКУП</div></div>
+        <div class="glass-card"><div class="card-title">ОСТАТОК АНКЕТ</div><div class="card-value" style="color: #3B82F6;">5 ШТ.</div></div>
+        <div class="glass-card"><div class="card-title">БЕЗЛИМИТНЫЙ ДОСТУП</div><div class="card-value" style="color: #EF4444;">❌ ВЫКЛ.</div></div>
+      </div>
+
+      <div class="glass-form mt-3">
+        <h4>💳 Тарифная сетка и покупка лицензии</h4>
+        <div class="tariff-grid">
+          <div class="tariff-box">
+            <h5>📦 Штучный пакет</h5><p class="price">15 000 ₽</p><p class="desc">Доступ к 5 проверенным анкетам соискателей</p>
