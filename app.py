@@ -167,32 +167,37 @@ with st.sidebar:
             "🎓 Личный кабинет Физического лица", 
             "🏢 Личный кабинет Производства", 
             "🛠️ Кабинет Ассоциации (Управление)"
-        ]
-    )
-    st.write("---")
-    st.caption("ПромКачество.СПб v2.0")
-
-# Вывод премиум Hero-баннера АПП
-st.markdown("""
-    <div class="hero-banner">
-        <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
-        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ</div>
-    </div>
-""", unsafe_allow_html=True)
-
-# Считываем живую статистику для шапки и таблиц
-conn = sqlite3.connect(DB_NAME)
-citizens_df = pd.read_sql_query("SELECT * FROM citizens", conn)
-payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
-courses_df = pd.read_sql_query("SELECT * FROM courses", conn)
-conn.close()
-
-# ==============================================================================
-# КАБИНЕТ №1: ГРАЖДАНЕ РФ (СОИСКАТЕЛИ)
-# ==============================================================================
-if user_role == "🎓 Личный кабинет Физического лица":
-    st.markdown("<h3>🎓 Портал обучения и Паспорт Навыков</h3>", unsafe_allow_html=True)
-    
+st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильная анкетa и загрузка документов</h4>", unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
+        c_fio = col1.text_input("ФИО соискателя полностью:", value="Иванов Игорь Игоревич")
+        c_phone = col2.text_input("Номер телефона для связи:", value="+7(900)111-22-33")
+        c_email = col3.text_input("E-mail соискателя:", value="ivanov@spb.ru")
+        
+        col4, col5, col6 = st.columns(3)
+        c_pass = col4.text_input("Паспорт (Серия, Номер):", placeholder="4011 123456")
+        c_diploma = col5.text_input("Диплом (Серия, Номер):", placeholder="№78-01")
+        c_work = col6.text_input("Трудовая книжка (Номер):", placeholder="№ТК-99")
+        
+        c_skills = st.text_area("Расскажите о ваших навыках и опыте работы (анкета о себе):")
+        c_gdpr = st.checkbox("Согласие на обработку персональных данных граждан РФ", value=True)
+        
+        if st.form_submit_button("Сохранить анкету соискателя", type="primary"):
+            if c_fio.strip() and c_phone.strip():
+                # Пишем напрямую в память st.session_state вместо сломанного SQLite
+                st.session_state["citizens_data"].append({
+                    "fio": c_fio.strip(), 
+                    "phone": c_phone.strip(), 
+                    "email": c_email.strip(), 
+                    "education": "Высшее техническое", 
+                    "passport": c_pass.strip(), 
+                    "diploma": c_diploma.strip(), 
+                    "workbook": c_work.strip(), 
+                    "skills": c_skills.strip(), 
+                    "gdpr": 1 if c_gdpr else 0, 
+                    "current_status": "Обучение"
+                })
+                st.toast("✓ Анкета соискателя успешно сохранена в системе!")
+                st.rerun()
     with st.form("citizen_form", clear_on_submit=False):
         st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильная анкетa и загрузка документов</h4>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns(3)
