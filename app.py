@@ -75,7 +75,7 @@ st.markdown("""
         /* Тарифные коробки */
         .tariff-box {
             background: rgba(15, 23, 42, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
             border-radius: 12px;
             padding: 25px;
             text-align: center;
@@ -111,54 +111,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ SQLITE (WAL)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ SQLITE (ИСПРАВЛЕННЫЕ ОТСТУПЫ И КЭШ)
 # ==============================================================================
 DB_NAME = "production_control_enterprise_final_v1.db"
 
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL;")
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT, phone TEXT, email TEXT, education TEXT,
-            passport TEXT, diploma TEXT, workbook TEXT, skills TEXT,
-            gdpr INTEGER DEFAULT 0, score INTEGER DEFAULT 0, status TEXT DEFAULT 'Обучение'
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            inn TEXT, title TEXT, model TEXT, text TEXT
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tariff TEXT, amount REAL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    cursor.execute("SELECT COUNT(*) FROM citizens")
-# ==============================================================================
-# ИСПРАВЛЕННЫЙ БЛОК ИНИЦИАЛИЗАЦИИ И КЭШИРОВАНИЯ БАЗЫ ДАННЫХ (Строки 144-150+)
-# ==============================================================================
-
 @st.cache_resource
 def get_db_connection():
-    """Кэшируем подключение к СУБД, чтобы избежать повторной инициализации при каждом ре rerun"""
+    """Кэшируем подключение к СУБД для максимальной b2b-скорости платформы"""
     conn = sqlite3.connect(DB_NAME, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
 def init_db():
-    """Инициализация структуры таблиц базы данных под 3 кабинета"""
+    """Инициализация таблиц базы данных с идеальным выравниванием отступов"""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("PRAGMA journal_mode=WAL;")
     
-    # Создаем таблицы (Граждане, Курсы ДПО, Платежи)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS citizens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,12 +136,14 @@ def init_db():
             gdpr INTEGER DEFAULT 0, score INTEGER DEFAULT 0, status TEXT DEFAULT 'Обучение'
         )
     """)
+    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS courses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             inn TEXT, title TEXT, model TEXT, text TEXT
         )
     """)
+    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS payments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -180,43 +151,16 @@ def init_db():
         )
     """)
     
-    # ПРОВЕРКА НА ПУСТОТУ: Если данных нет — заполняем демо-записями
     cursor.execute("SELECT COUNT(*) FROM citizens")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO citizens (fio, phone, email, education, current_status) VALUES ('Никифоров Артур Владимирович', '+7(921)555-44-33', 'artur@mail.ru', 'Высшее техническое', 'Железный специалист')")
         cursor.execute("INSERT INTO payments (tariff, amount) VALUES ('Безлимитный Год', 150000.0)")
-    
+        
     conn.commit()
     conn.close()
 
-# Запускаем один раз при старте
+# Запускаем инициализацию реляционного контура
 init_db()
-
-    
-    # Сначала создаем структуру таблицы, чтобы SQL знал, куда писать данные
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT,
-            phone TEXT,
-            email TEXT,
-            education TEXT,
-            current_status TEXT
-        )
-    """)
-    
-    # Теперь добавляем запись (база данных примет её без ошибок)
-    cursor.execute("""
-        INSERT INTO citizens (fio, phone, email, education, current_status) 
-        VALUES ('Никифоров Артур Владимирович', '+7(921)555-44-33', 'artur@mail.ru', 'Высшее техническое', 'Железный специалист')
-    """)
-    
-    conn.commit()
-    return conn
-
-# Безопасный вызов функции
-conn = init_db()
-
 
 # ==============================================================================
 # 3. НАВИГАЦИЯ АПП (Сайдбар и Роли из CodePen)
@@ -256,7 +200,7 @@ if user_role == "🎓 Личный кабинет Физического лиц�
     st.markdown("<h3>🎓 Портал обучения и Паспорт Навыков</h3>", unsafe_allow_html=True)
     
     with st.form("citizen_form", clear_on_submit=False):
-        st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильная анкета и загрузка документов</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильная анкетa и загрузка документов</h4>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns(3)
         c_fio = col1.text_input("ФИО соискателя полностью:", value="Иванов Игорь Игоревич")
         c_phone = col2.text_input("Номер телефона для связи:", value="+7(900)111-22-33")
@@ -279,7 +223,7 @@ if user_role == "🎓 Личный кабинет Физического лиц�
                 """, (c_fio.strip(), c_phone.strip(), c_email.strip(), c_pass.strip(), c_diploma.strip(), c_work.strip(), c_skills.strip(), 1 if c_gdpr else 0))
                 conn.commit()
                 conn.close()
-                st.toast("Анкета успешно сохранена в СУБД SQLite!")
+                st.toast("Анкета успешно сохранена в реляционной СУБД SQLite!")
                 st.rerun()
 
     # Блок теста компетенций
@@ -293,11 +237,3 @@ if user_role == "🎓 Личный кабинет Физического лиц�
         ], index=None)
         
         if st.form_submit_button("Отправить ответы экзамена", type="primary"):
-            if ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
-                st.success("🎯 Ответ верен! Вам присвоен наивысший статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
-            else:
-                st.error("❌ Алгоритм неверен! Допуск к оборудованию заблокирован автоматикой платформы.")
-
-# ==============================================================================
-# КАБИНЕТ №2: ПРОИЗВОДСТВА
-# ==============================================================================
