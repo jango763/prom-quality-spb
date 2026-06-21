@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
 import io
 
 # ==============================================================================
@@ -111,50 +110,36 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ SQLITE (ФИКС ОШИБКИ STRUCTDB ЧЕРЕЗ СМЕНУ ВЕРСИИ НА V4)
+# 2. ИНИЦИАЛИЗАЦИЯ БЕЗОПАСНОЙ ПАМЯТИ ПЛАТФОРМЫ (ST.SESSION_STATE)
 # ==============================================================================
-DB_NAME = "production_control_enterprise_final_v9.db"
-def init_db():
-    """Инициализация единой базы данных для всех кабинетов"""
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL;")
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT, phone TEXT, email TEXT, education TEXT,
-            passport TEXT, diploma TEXT, workbook TEXT, skills TEXT,
-            gdpr INTEGER DEFAULT 0, score INTEGER DEFAULT 0, status TEXT DEFAULT 'Обучение'
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            inn TEXT, title TEXT, model TEXT, text TEXT
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tariff TEXT, amount REAL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    cursor.execute("SELECT COUNT(*) FROM citizens")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("""
-            INSERT INTO citizens (fio, phone, email, education, passport, diploma, workbook, skills, gdpr, current_status) 
-            VALUES ('Никифоров Артур Владимирович', '+7(921)555-44-33', 'artur@mail.ru', 'Высшее техническое', '', '', '', '', 1, 'Железный специалист')
-        """)
-        cursor.execute("INSERT INTO payments (tariff, amount) VALUES ('Безлимитный Год', 150000.0)")
-        
-    conn.commit()
-    conn.close()
+if "citizens_data" not in st.session_state:
+    st.session_state["citizens_data"] = [
+        {
+            "fio": "Никифоров Артур Владимирович", 
+            "phone": "+7(921)555-44-33", 
+            "email": "artur@mail.ru", 
+            "education": "Высшее техническое", 
+            "passport": "4012 987654", 
+            "diploma": "№78-05", 
+            "workbook": "№ТК-12", 
+            "skills": "Фрезеровщик ЧПУ 4 разряда", 
+            "gdpr": 1, 
+            "current_status": "Железный специалист"
+        }
+    ]
 
-init_db()
+if "payments_data" not in st.session_state:
+    st.session_state["payments_data"] = [
+        {"id": 1, "tariff": "Безлимитный Год", "amount": 150000.0, "timestamp": "2026-03-15 12:00:00"}
+    ]
+
+if "courses_data" not in st.session_state:
+    st.session_state["courses_data"] = []
+
+# Конвертируем в DataFrame для удобного вывода в таблицы Ассоциации
+citizens_df = pd.DataFrame(st.session_state["citizens_data"])
+payments_df = pd.DataFrame(st.session_state["payments_data"])
+courses_df = pd.DataFrame(st.session_state["courses_data"])
 
 # ==============================================================================
 # 3. НАВИГАЦИЯ (Переключатель кабинетов в сайдбаре как на CodePen)
@@ -167,7 +152,27 @@ with st.sidebar:
             "🎓 Личный кабинет Физического лица", 
             "🏢 Личный кабинет Производства", 
             "🛠️ Кабинет Ассоциации (Управление)"
-st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильная анкетa и загрузка документов</h4>", unsafe_allow_html=True)
+        ]
+    )
+    st.write("---")
+    st.caption("ПромКачество.СПб v2.0")
+
+# Вывод премиум Hero-баннера АПП
+st.markdown("""
+    <div class="hero-banner">
+        <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
+        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ</div>
+    </div>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# КАБИНЕТ №1: ГРАЖДАНЕ РФ (СОИСКАТЕЛИ)
+# ==============================================================================
+if user_role == "🎓 Личный кабинет Физического лица":
+    st.markdown("<h3>🎓 Портал обучения и Паспорт Навыков</h3>", unsafe_allow_html=True)
+    
+    with st.form("citizen_form", clear_on_submit=False):
+        st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильная анкетa и загрузка документов</h4>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns(3)
         c_fio = col1.text_input("ФИО соискателя полностью:", value="Иванов Игорь Игоревич")
         c_phone = col2.text_input("Номер телефона для связи:", value="+7(900)111-22-33")
@@ -183,7 +188,6 @@ st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильна
         
         if st.form_submit_button("Сохранить анкету соискателя", type="primary"):
             if c_fio.strip() and c_phone.strip():
-                # Пишем напрямую в память st.session_state вместо сломанного SQLite
                 st.session_state["citizens_data"].append({
                     "fio": c_fio.strip(), 
                     "phone": c_phone.strip(), 
@@ -192,6 +196,13 @@ st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильна
                     "passport": c_pass.strip(), 
                     "diploma": c_diploma.strip(), 
                     "workbook": c_work.strip(), 
+                    "skills": c_skills.strip(), 
+                    "gdpr": 1 if c_gdpr else 0, 
+                    "current_status": "Обучение"
+                })
+                st.toast("✓ Анкета соискателя успешно сохранена в системе!")
+                st.rerun()
+
     # Блок теста компетенций
     with st.form("test_form"):
         st.markdown("<h4 style='color:#34D399; font-weight:700;'>🤖 Тест компетенций на производстве</h4>", unsafe_allow_html=True)
@@ -204,8 +215,8 @@ st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильна
         
         if st.form_submit_button("Отправить ответы экзамена", type="primary"):
             if ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
-                # Меняем статус последнего добавленного соискателя на "Железный специалист" в памяти
                 if st.session_state["citizens_data"]:
+                    st.session_state["citizens_data"][-1]["current_status"] = "Железный專员"
                     st.session_state["citizens_data"][-1]["current_status"] = "Железный специалист"
                 st.success("🎯 Ответ верен! Вам присвоен наивысший статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
                 st.rerun()
@@ -219,21 +230,3 @@ elif user_role == "🏢 Личный кабинет Производства":
     st.markdown("<h3>🏢 Кабинет Завода-Производителя оборудования</h3>", unsafe_allow_html=True)
     
     # Сетка объемных карточек KPI из CodePen
-    c1, c2, c3 = st.columns(3)
-    with c1: st.markdown('<div class="glass-card"><div class="card-title">ТЕКУЩИЙ ТАРИФ</div><div class="card-value">ПОШТУЧНЫЙ ВЫКУП</div></div>', unsafe_allow_html=True)
-    with c2: st.markdown('<div class="glass-card"><div class="card-title">ОСТАТОК АНКЕТ</div><div class="card-value" style="color: #3B82F6;">5 ШТ.</div></div>', unsafe_allow_html=True)
-    with c3: st.markdown('<div class="glass-card"><div class="card-title">БЕЗЛИМИТНЫЙ ДОСТУП</div><div class="card-value" style="color: #EF4444;">❌ ВЫКЛ.</div></div>', unsafe_allow_html=True)
-
-            "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера",
-            "Снизить обороты шпинделя вручную на 20%"
-        ], index=None)
-        
-        if st.form_submit_button("Отправить ответы экзамена", type="primary"):
-            if ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
-                conn = sqlite3.connect(DB_NAME)
-                conn.execute("UPDATE citizens SET current_status = 'Железный специалист' WHERE phone = ?", (c_phone.strip(),))
-                conn.commit()
-                conn.close()
-                st.success("🎯 Ответ верен! Вам присвоен наивысший статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
-            else:
-                st.error("❌ Алгоритм неверен! Допуск к оборудованию заблокирован автоматикой платформы.")
