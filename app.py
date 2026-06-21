@@ -3,16 +3,24 @@ import pandas as pd
 import io
 
 # ==============================================================================
-# 1. СТИЛИ ИЗ CODEPEN (Glassmorphism, Киберпанк-неон, Фон #0B0F19)
+# 1. СТИЛИ ИЗ CODEPEN (Идеальный контраст, Glassmorphism, яркий белый текст)
 # ==============================================================================
 st.set_page_config(page_title="ПромКачество.СПб | Система Допусков", layout="wide", page_icon="🏭")
 
 st.markdown("""
     <style>
-        /* Полное переопределение фона под тему вашего CodePen */
+        /* Полное переопределение фона и базовых шрифтов под тему CodePen */
         .stApp {
             background-color: #0B0F19 !important;
             color: #F8FAFC !important;
+        }
+        
+        /* Фикс читаемости: делаем подписи (label) над инпутами ярко-белыми */
+        div[data-testid="stWidgetLabel"] p, label p {
+            color: #FFFFFF !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
         
         /* Наш особый премиум Hero-баннер АПП */
@@ -39,28 +47,29 @@ st.markdown("""
             line-height: 1.4;
         }
 
-        /* Интерактивные матовые B2B-контейнеры (Glassmorphism) */
+        /* Интерактивные матовые B2B-контейнеры без грязных серых теней (Glassmorphism) */
         div[data-testid="stForm"], div[data-testid="stExpander"], .stAlert {
             background: rgba(17, 24, 39, 0.7) !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
             border-radius: 14px !important;
             padding: 25px !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6) !important;
             backdrop-filter: blur(12px);
         }
 
-        /* Объемные b2b-карточки KPI из CodePen */
+        /* Объемные b2b-карточки KPI из CodePen с изумрудным неоновым бликом */
         .glass-card {
             background: rgba(30, 41, 59, 0.4) !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(16, 185, 129, 0.2) !important;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 15px;
+            box-shadow: inset 0 0 15px rgba(16, 185, 129, 0.05);
         }
         .card-title {
             font-size: 12px;
             font-weight: 700;
-            color: #64748B;
+            color: #94A3B8;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -69,6 +78,7 @@ st.markdown("""
             font-weight: 800;
             color: #10B981;
             margin-top: 5px;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
         }
 
         /* Тарифные коробки */
@@ -81,26 +91,38 @@ st.markdown("""
             margin-bottom: 15px;
         }
         .tariff-box.popular {
-            border-color: #10B981;
-            background: rgba(16, 185, 129, 0.02);
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.05);
+            border-color: #10B981 !important;
+            background: rgba(16, 185, 129, 0.02) !important;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.1) !important;
         }
         .price {
             font-size: 36px;
             font-weight: 900;
             color: #10B981;
             margin: 10px 0;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
         }
         .desc {
             font-size: 13px;
             color: #94A3B8;
         }
 
-        /* Поля ввода */
-        .stTextInput input, .stTextArea textarea, .stSelectbox div {
-            background-color: rgba(15, 23, 42, 0.6) !important;
-            color: #F8FAFC !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        /* Фикс полей ввода: делаем текст внутри инпутов идеально белым и контрастным */
+        .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+            background-color: rgba(15, 23, 42, 0.8) !important;
+            color: #FFFFFF !important;
+            font-weight: 500 !important;
+            border: 1px solid rgba(16, 185, 129, 0.2) !important;
+            border-radius: 8px !important;
+        }
+        .stTextInput input:focus, .stTextArea textarea:focus {
+            border-color: #10B981 !important;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
+        }
+
+        /* Текст вариантов в радио-кнопках */
+        div[data-testid="stMarkdownContainer"] p {
+            color: #E2E8F0 !important;
         }
 
         /* Вкладки навигации */
@@ -169,7 +191,7 @@ st.markdown("""
 # КАБИНЕТ №1: ГРАЖДАНЕ РФ (СОИСКАТЕЛИ)
 # ==============================================================================
 if user_role == "🎓 Личный кабинет Физического лица":
-    st.markdown("<h3>🎓 Портал обучения и Паспорт Навыков</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#FFFFFF; font-weight:700;'>🎓 Портал обучения и Паспорт Навыков</h3>", unsafe_allow_html=True)
     
     with st.form("citizen_form", clear_on_submit=False):
         st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильная анкетa и загрузка документов</h4>", unsafe_allow_html=True)
@@ -203,30 +225,6 @@ if user_role == "🎓 Личный кабинет Физического лиц�
                 st.toast("✓ Анкета соискателя успешно сохранена в системе!")
                 st.rerun()
 
-    # Блок теста компетенций
+    # Блок теста компетенций с ЖЁСТКИМ СИСТЕМНЫМ ОБНОВЛЕНИЕМ СТАТУСА
     with st.form("test_form"):
         st.markdown("<h4 style='color:#34D399; font-weight:700;'>🤖 Тест компетенций на производстве</h4>", unsafe_allow_html=True)
-        st.markdown("**КЕЙС:** Критическая аварийная ситуация: Датчик стойки управления Syntec выдал перегрев шпинделя станка ЧПУ за 20 млн рублей. Ваши действия?")
-        ans = st.radio("Выберите правильный алгоритм действий:", [
-            "Игнорировать и закончить деталь",
-            "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера",
-            "Снизить обороты шпинделя вручную на 20%"
-        ], index=None)
-        
-        if st.form_submit_button("Отправить ответы экзамена", type="primary"):
-            if ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
-                if st.session_state["citizens_data"]:
-                    st.session_state["citizens_data"][-1]["current_status"] = "Железный專员"
-                    st.session_state["citizens_data"][-1]["current_status"] = "Железный специалист"
-                st.success("🎯 Ответ верен! Вам присвоен наивысший статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
-                st.rerun()
-            else:
-                st.error("❌ Алгоритм неверен! Допуск к оборудованию заблокирован автоматикой платформы.")
-
-# ==============================================================================
-# КАБИНЕТ №2: ПРОИЗВОДСТВА (ЗАВОДЫ)
-# ==============================================================================
-elif user_role == "🏢 Личный кабинет Производства":
-    st.markdown("<h3>🏢 Кабинет Завода-Производителя оборудования</h3>", unsafe_allow_html=True)
-    
-    # Сетка объемных карточек KPI из CodePen
