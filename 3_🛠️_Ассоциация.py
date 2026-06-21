@@ -1,102 +1,75 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 
-# Подгружаем фирменные b2b-стили CodePen
+# 1. Подгружаем стили CodePen для сохранения внешки
 st.markdown("""
     <style>
         .stApp { background-color: #0B0F19 !important; color: #F8FAFC !important; }
         div[data-testid="stForm"], .stAlert {
             background: rgba(17, 24, 39, 0.7) !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
             border-radius: 14px !important; padding: 25px !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; backdrop-filter: blur(12px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6) !important; backdrop-filter: blur(12px);
         }
-        .glass-card {
-            background: rgba(30, 41, 59, 0.4) !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
-            border-radius: 12px; padding: 20px; margin-bottom: 15px;
+        .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+            background-color: rgba(15, 23, 42, 0.8) !important; color: #FFFFFF !important;
+            border: 1px solid rgba(16, 185, 129, 0.2) !important; border-radius: 8px !important;
         }
-        .card-title { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
-        .card-value { font-size: 24px; font-weight: 800; color: #10B981; margin-top: 5px; }
-        
-        .tariff-box {
-            background: rgba(15, 23, 42, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
-            border-radius: 12px; padding: 25px; text-align: center; margin-bottom: 15px;
-        }
-        .tariff-box.popular {
-            border-color: #10B981; background: rgba(16, 185, 129, 0.02);
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.05);
-        }
-        .price { font-size: 36px; font-weight: 900; color: #10B981; margin: 10px 0; }
-        .desc { font-size: 13px; color: #94A3B8; }
-        .stTextInput input, .stTextArea textarea, .stSelectbox div {
-            background-color: rgba(15, 23, 42, 0.6) !important; color: #F8FAFC !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        }
-        .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #94A3B8; }
-        .stTabs [aria-selected="true"] { color: #10B981 !important; border-bottom-color: #10B981 !important; }
+        div[data-testid="stWidgetLabel"] p, label p { color: #FFFFFF !important; font-weight: 600 !important; }
     </style>
 """, unsafe_allow_html=True)
 
-DB_NAME = "production_control_enterprise_final_v1.db"
+st.markdown("<h2>🎓 Портал обучения граждан РФ и Паспорт Навыков</h2>", unsafe_allow_html=True)
 
-st.markdown("<h2>🏢 Личный кабинет Завода-Производителя оборудования</h2>", unsafe_allow_html=True)
+# Защита от сброса памяти: проверяем инициализацию массивов в текущей сессии
+if "citizens_data" not in st.session_state:
+    st.session_state["citizens_data"] = []
 
-# Сетка объемных b2b-карточек KPI из CodePen
-c1, c2, c3 = st.columns(3)
-with c1: st.markdown('<div class="glass-card"><div class="card-title">ТЕКУЩИЙ ТАРИФ ИНДУСТРИИ</div><div class="card-value">ПОШТУЧНЫЙ ВЫКУП</div></div>', unsafe_allow_html=True)
-with c2: st.markdown('<div class="glass-card"><div class="card-title">ОСТАТОК ПРОВЕРЕННЫХ АНКЕТ</div><div class="card-value" style="color: #3B82F6;">5 ШТ.</div></div>', unsafe_allow_html=True)
-with c3: st.markdown('<div class="glass-card"><div class="card-title">БЕЗЛИМИТНЫЙ ДОСТУП АПП</div><div class="card-value" style="color: #EF4444;">❌ ВЫКЛ.</div></div>', unsafe_allow_html=True)
+# Вкладки интерактива соискателя
+tab_anketa, tab_exam = st.tabs(["📝 Профильная анкета и документы", "🤖 Тест компетенций на производстве"])
 
-tab_tariffs, tab_dpo = st.tabs(["💳 Тарифная сетка и коммерческие подписки", "📥 Загрузка b2b-стандарта ДПО"])
-
-with tab_tariffs:
-    st.markdown("<br>", unsafe_allow_html=True)
-    col_t1, col_t2 = st.columns(2)
-    
-    with col_t1:
-        st.markdown('<div class="tariff-box"><h5>📦 Штучный пакет анкет</h5><div class="price">15 000 ₽</div><div class="desc">Разовый выкуп контактов 5 верифицированных мастеров</div></div>', unsafe_allow_html=True)
-        if st.button("Купить поштучный пакет (5 шт)", key="buy_piece_btn", use_container_width=True):
-            conn = sqlite3.connect(DB_NAME)
-            conn.execute("INSERT INTO payments (tariff, amount) VALUES ('Поштучно (5 шт)', 15000.0)")
-            conn.commit()
-            conn.close()
-            st.toast("✓ Проводка штучной лицензии отправлена в Ассоциацию!")
-            st.rerun()
-            
-    with col_t2:
-        st.markdown('<div class="tariff-box popular"><h5>⚔️ Безлимитный Год найма</h5><div class="price">150 000 ₽</div><div class="desc">Полный безлимитный доступ к базе "Железных специалистов" на 365 дней</div></div>', unsafe_allow_html=True)
-        if st.button("Активировать Безлимитную лицензию", key="buy_unlim_btn", use_container_width=True, type="primary"):
-            conn = sqlite3.connect(DB_NAME)
-            conn.execute("INSERT INTO payments (tariff, amount) VALUES ('Безлимитный Год', 150000.0)")
-            conn.commit()
-            conn.close()
-            st.toast("✓ Годовая b2b-подписка успешно активирована!")
-            st.rerun()
-
-with tab_dpo:
-    with st.form("factory_dpo_upload_form"):
-        st.markdown("<h4 style='color:#34D399; font-weight:700;'>📥 Конструктор программы обучения под оборудование</h4>", unsafe_allow_html=True)
+with tab_anketa:
+    with st.form("citizen_reg_form_page", clear_on_submit=False):
+        st.markdown("<h4 style='color:#34D399; font-weight:700;'>📂 Ввод персональных данных и квалификации</h4>", unsafe_allow_html=True)
         
-        col_f1, col_f2 = st.columns(2)
-        f_inn = col_f1.text_input("Верифицированный ИНН предприятия:", placeholder="7805041230")
-        f_phone = col_f2.text_input("Контактный телефон отдела кадров:", value="+7(812)111-22-33")
-        f_email = st.text_input("E-mail для получения кадровых уведомлений:", value="hr@factory.spb.ru")
+        col1, col2, col3 = st.columns(3)
+        c_fio = col1.text_input("ФИО соискателя полностью:", value="Иванов Игорь Игоревич")
+        c_phone = col2.text_input("Номер мобильного телефона:", value="+7(900)111-22-33")
+        c_email = col3.text_input("Электронная почта (E-mail):", value="ivanov@spb.ru")
         
-        f_title = st.text_input("Название новой программы опережающего ДПО:")
-        f_model = st.text_input("Модель дорогостоящего станка (под формирование сбыта):", value="Станок ЧПУ 20млн+ рублей")
+        col4, col5, col6 = st.columns(3)
+        c_pass = col4.text_input("Паспорт гражданина РФ (Серия, Номер):", placeholder="4011 123456")
+        c_diploma = col5.text_input("Диплом об образовании (Серия, Номер):", placeholder="№78-01")
+        c_work = col6.text_input("Трудовая книжка (Серия, Номер):", placeholder="№ТК-99")
         
-        f_text = st.text_area("Развернутый текст регламента безопасности и эксплуатации станка (инструкции ТБ):", placeholder="1. Проверить давление пресса...\n2. Использовать быстрый ход G00 запрещено...")
+        c_skills = st.text_area("Анкета о себе (Ваши навыки, разряды, работа на станках ЧПУ):")
+        c_gdpr = st.checkbox("Согласие на обработку персональных данных граждан РФ", value=True)
         
-        if st.form_submit_button("Опубликовать b2b-стандарт завода", use_container_width=True):
-            if not f_inn.strip() or not f_title.strip():
-                st.error("Заполните ИНН и Название программы обучения!")
-            else:
-                conn = sqlite3.connect(DB_NAME)
-                conn.execute("INSERT INTO courses (inn, title, model, text) VALUES (?, ?, ?, ?)", (f_inn.strip(), f_title.strip(), f_model.strip(), f_text.strip()))
-                conn.commit()
-                conn.close()
-                st.success("✓ Программа опережающего обучения успешно опубликована на витрине ДПО!")
+        if st.form_submit_button("Сохранить анкету соискателя", type="primary"):
+            if c_fio.strip() and c_phone.strip():
+                st.session_state["citizens_data"].append({
+                    "fio": c_fio.strip(), "phone": c_phone.strip(), "email": c_email.strip(),
+                    "education": "Высшее техническое", "passport": c_pass.strip(), 
+                    "diploma": c_diploma.strip(), "workbook": c_work.strip(), 
+                    "skills": c_skills.strip(), "gdpr": 1 if c_gdpr else 0, "current_status": "Обучение"
+                })
+                st.toast("✓ Анкета соискателя успешно сохранена в системе!")
                 st.rerun()
+
+with tab_exam:
+    with st.form("exam_test_form_page"):
+        st.info("КЕЙС: На пульте управления дорогостоящего станка ЧПУ датчик стойки Syntec выдал критический перегрев шпинделя. Каковы ваши экстренные действия?")
+        ans = st.radio("Выберите правильный алгоритм действий:", [
+            "Игнорировать предупреждение автоматики и закончить фрезеровку текущей детали",
+            "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха",
+            "Вручную снизить обороты шпинделя на 20% через потенциометр пульта"
+        ], index=None)
+        
+        if st.form_submit_button("Отправить ответы экзамена на проверку", type="primary"):
+            if ans == "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха":
+                if st.session_state["citizens_data"]:
+                    st.session_state["citizens_data"][-1]["current_status"] = "Железный специалист"
+                st.success("🎯 ЭКЗАМЕН СДАН! Вам присвоен наивысший статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
+                st.balloons()
+            else:
+                st.error("❌ Алгоритм неверен! Допуск к оборудованию заблокирован автоматикой платформы.")
