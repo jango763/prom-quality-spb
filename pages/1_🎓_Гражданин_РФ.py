@@ -1,6 +1,6 @@
 import streamlit as st
 
-# Подгружаем стили
+# Подгружаем стили CodePen для сохранения внешки
 st.markdown("""
     <style>
         .stApp { background-color: #0B0F19 !important; color: #F8FAFC !important; }
@@ -15,7 +15,13 @@ st.markdown("""
 
 st.markdown("<h2>🎓 Портал обучения граждан РФ и Цифровой Паспорт Навыков</h2>", unsafe_allow_html=True)
 
-tab_anketa, tab_exam = st.tabs(["📝 Профильная анкета и документы", "🤖 Интерактивный мини-тренажер ЧПУ"])
+# Защитный слой инициализации памяти, если скрипт запустился обособленно
+if "citizens_data" not in st.session_state:
+    st.session_state["citizens_data"] = [
+        {"fio": "Никифоров Артур Владимирович", "phone": "+7(921)555-44-33", "email": "artur@mail.ru", "education": "Высшее техническое", "passport": "4012 987654", "diploma": "№78-05", "workbook": "№ТК-12", "contract_status": "Подписан", "progress": 100, "current_status": "Железный специалист"}
+    ]
+
+tab_anketa, tab_exam = st.tabs(["📝 Профильная анкета и документы", "🤖 Интерактивный mini-тренажер ЧПУ"])
 
 with tab_anketa:
     with st.form("citizen_reg_form_v2", clear_on_submit=False):
@@ -49,11 +55,11 @@ with tab_anketa:
                     "education": c_edu_place, "passport": c_pass.strip(), "diploma": c_diploma.strip(), 
                     "workbook": c_work.strip(), "contract_status": c_contract, "progress": base_progress, "current_status": "Обучение"
                 })
-                st.toast("✓ Анкета и b2b-документы зафиксированы в общей сессии!")
+                st.toast("✓ Анкета и b2b-документы зафиксированы!")
                 st.rerun()
 
     # ЖИВОЙ ЦИФРОВОЙ ПАСПОРТ НАВЫКОВ С PROGRESS BAR
-    if "citizens_data" in st.session_state and st.session_state["citizens_data"]:
+    if st.session_state["citizens_data"]:
         current_student = st.session_state["citizens_data"][-1]
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -76,7 +82,7 @@ with tab_exam:
     
     with st.form("exam_test_form_v2"):
         st.info("КЕЙС: На пульте управления дорогостоящего станка ЧПУ датчик стойки Syntec выдал критический перегрев шпинделя. Каковы ваши экстренные действия?")
-        ans = st.radio("Выберите строго один правильный алгоритм действий:", [
+        ans = st.radio("Выберите правильный алгоритм действий:", [
             "Игнорировать предупреждение автоматики и закончить фрезеровку текущей детали",
             "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха",
             "Вручную снизить обороты шпинделя на 20% через потенциометр пульта"
@@ -84,13 +90,12 @@ with tab_exam:
         
         if st.form_submit_button("Отправить ответы экзамена на проверку", type="primary"):
             if ans == "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха":
-                if "citizens_data" in st.session_state and st.session_state["citizens_data"]:
+                if st.session_state["citizens_data"]:
                     st.session_state["citizens_data"][-1]["current_status"] = "Железный специалист"
                     st.session_state["citizens_data"][-1]["progress"] = 100
-                st.success("🎯 ТРЕНАЖЕР ПРОЙДЕН! Готовность на симуляторе 100%. Статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
-                st.balloons()
-                st.rerun()
+                st.balloons()  # Запуск шаров БЕЗ последующего моментального сброса st.rerun()
+                st.success("🎯 ТРЕНАЖЕР УСПЕШНО ПРОЙДЕН! Готовность на симуляторе выведена на 100%. Вам присвоен высший статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
             else:
-                if "citizens_data" in st.session_state and st.session_state["citizens_data"]:
+                if st.session_state["citizens_data"]:
                     st.session_state["citizens_data"][-1]["current_status"] = "Обучение"
-                st.error("❌ ТРЕНАЖЕР ПРОВАЛЕН! Произошла виртуальная авария шпинделя станка ЧПУ. Повторите регламент ТБ.")
+                st.error("❌ ТРЕНАЖЕР ПРОВАЛЕН! Произошла авария промышленного шпинделя станка ЧПУ. Допуск заблокирован автоматикой.")
