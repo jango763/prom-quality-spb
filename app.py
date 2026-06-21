@@ -1,152 +1,234 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>ПромКачество.СПб</title>
+import streamlit as st
+import pandas as pd
+import sqlite3
+import io
+
+# ==============================================================================
+# 1. СТИЛИ ИЗ ВАШЕГО CODEPEN ( Glassmorphism, Неон, Фон #0B0F19 )
+# ==============================================================================
+st.set_page_config(page_title="ПромКачество.СПб | Система Допусков", layout="wide", page_icon="🏭")
+
+st.markdown("""
     <style>
-        * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-        body { background-color: #0B0F19 !important; color: #F8FAFC !important; margin: 0; padding: 0; }
-        .cyber-app-container { display: flex; min-height: 100vh; }
-        
-        .cyber-sidebar {
-            width: 320px; background: #0D1322; border-right: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 30px 20px; display: flex; flex-direction: column; justify-content: space-between;
+        /* Полное переопределение фона под тему вашего CodePen */
+        .stApp {
+            background-color: #0B0F19 !important;
+            color: #F8FAFC !important;
         }
-        .sidebar-header { display: flex; align-items: center; gap: 10px; }
-        .cyber-sidebar h2 { font-size: 20px; font-weight: 800; color: #10B981; margin: 0; text-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
-        .cyber-pulse-dot { width: 8px; height: 8px; background-color: #10B981; border-radius: 50%; box-shadow: 0 0 10px #10B981; }
-        .role-selector-box label { font-size: 13px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-        .role-selector-box select { width: 100%; padding: 12px; background: #111827; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: #F8FAFC; font-weight: 600; margin-top: 8px; cursor: pointer; }
-        .sidebar-footer { font-size: 12px; color: #475569; font-weight: 600; }
-
-        .cyber-main { flex-grow: 1; padding: 30px; max-width: 1200px; }
-        .hero-banner { background: linear-gradient(135deg, #0F172A 0%, #111827 100%) !important; padding: 35px; border-radius: 16px; color: #FFFFFF; margin-bottom: 25px; border-left: 8px solid #10B981; box-shadow: 0 0 25px rgba(16, 185, 129, 0.15); }
-        .hero-title { font-size: 28px; font-weight: 800; background: linear-gradient(90deg, #10B981, #34D399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .hero-subtitle { font-size: 14px; color: #94A3B8; margin-top: 8px; line-height: 1.4; }
-
-        .cyber-panel { display: none; width: 100%; }
-        .glass-form { background: rgba(17, 24, 39, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 14px; padding: 25px; margin-bottom: 20px; backdrop-filter: blur(12px); }
-        .glass-form h4 { margin-top: 0; margin-bottom: 20px; font-size: 16px; color: #34D399; font-weight: 700; }
         
-        .form-grid, .form-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; }
-        .glass-card { background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 20px; }
-        .card-title { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
-        .card-value { font-size: 24px; font-weight: 800; color: #10B981; margin-top: 5px; }
-        
-        .tariff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .tariff-box { background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; text-align: center; }
-        .tariff-box.popular { border-color: #10B981; background: rgba(16, 185, 129, 0.02); box-shadow: 0 0 20px rgba(16, 185, 129, 0.05); }
-        .price { font-size: 36px; font-weight: 900; color: #10B981; margin: 10px 0; }
-        .desc { font-size: 13px; color: #94A3B8; }
+        /* Наш особый премиум Hero-баннер АПП */
+        .hero-banner {
+            background: linear-gradient(135deg, #0F172A 0%, #111827 100%) !important;
+            padding: 35px;
+            border-radius: 16px;
+            color: #FFFFFF;
+            margin-bottom: 25px;
+            border-left: 8px solid #10B981;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.15);
+        }
+        .hero-title {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #10B981, #34D399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-subtitle {
+            font-size: 14px;
+            color: #94A3B8;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
 
-        input, textarea, select { width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #F8FAFC; font-size: 14px; margin-bottom: 10px; }
-        input:focus, textarea:focus { border-color: #10B981; outline: none; box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
-        .question { font-weight: 600; color: #E2E8F0; }
-        .radio-group label { display: block; padding: 10px; background: rgba(255, 255, 255, 0.02); margin-top: 8px; border-radius: 6px; cursor: pointer; }
-        .checkbox-line { display: flex; align-items: center; gap: 8px; }
-        .checkbox-line input { width: auto; margin: 0; }
+        /* Интерактивные матовые B2B-контейнеры (Glassmorphism) */
+        div[data-testid="stForm"], div[data-testid="stExpander"], .stAlert {
+            background: rgba(17, 24, 39, 0.7) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            border-radius: 14px !important;
+            padding: 25px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+            backdrop-filter: blur(12px);
+        }
 
-        .cyber-btn, .cyber-btn-buy { background: linear-gradient(90deg, #10B981, #059669); border: none; color: white; padding: 12px 24px; font-weight: 700; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2); transition: transform 0.2s; width: 100%; }
-        .cyber-btn:hover, .cyber-btn-buy:hover { transform: translateY(-2px); }
+        /* Объемные b2b-карточки KPI из CodePen */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .card-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .card-value {
+            font-size: 24px;
+            font-weight: 800;
+            color: #10B981;
+            margin-top: 5px;
+        }
 
-        .cyber-table-container { overflow-x: auto; }
-        .cyber-table { width: 100%; border-collapse: collapse; }
-        .cyber-table th, .cyber-table td { padding: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); text-align: left; }
-        .cyber-table th { color: #64748B; font-size: 13px; text-transform: uppercase; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
-        .badge-success { background: rgba(16, 185, 129, 0.15); color: #10B981; }
-        .badge-warning { background: rgba(245, 158, 11, 0.15); color: #F59E0B; }
-        .mt-3 { margin-top: 20px; }
+        /* Тарифные коробки */
+        .tariff-box {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .tariff-box.popular {
+            border-color: #10B981;
+            background: rgba(16, 185, 129, 0.02);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.05);
+        }
+        .price {
+            font-size: 36px;
+            font-weight: 900;
+            color: #10B981;
+            margin: 10px 0;
+        }
+        .desc {
+            font-size: 13px;
+            color: #94A3B8;
+        }
+
+        /* Статусы-чипсы */
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 700; color: white; }
+        .status-ready { background-color: #10B981; }
+        .status-process { background-color: #3B82F6; }
+        .status-danger { background-color: #EF4444; }
+
+        /* Вкладки навигации */
+        .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: 600; color: #94A3B8; }
+        .stTabs [aria-selected="true"] { color: #10B981 !important; border-bottom-color: #10B981 !important; }
     </style>
-</head>
-<body>
+""", unsafe_allow_html=True)
 
-<div class="cyber-app-container">
-  <aside class="cyber-sidebar">
-    <div class="sidebar-header">
-      <h2>🔒 КОНТУР АПП</h2>
-      <div class="cyber-pulse-dot"></div>
+# ==============================================================================
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ SQLITE (WAL)
+# ==============================================================================
+DB_NAME = "production_control_enterprise_v3.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL;")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS citizens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fio TEXT, phone TEXT, email TEXT, education TEXT,
+            passport TEXT, diploma TEXT, workbook TEXT, skills TEXT,
+            gdpr INTEGER DEFAULT 0, score INTEGER DEFAULT 0, status TEXT DEFAULT 'Обучение'
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            inn TEXT, title TEXT, model TEXT, text TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tariff TEXT, amount REAL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    cursor.execute("SELECT COUNT(*) FROM citizens")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO citizens (fio, phone, email, education, current_status) VALUES ('Никифоров Артур Владимирович', '+7(921)555-44-33', 'artur@mail.ru', 'Высшее техническое', 'Железный специалист')")
+        cursor.execute("INSERT INTO payments (tariff, amount) VALUES ('Безлимитный Год', 150000.0)")
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# ==============================================================================
+# 3. НАВИГАЦИЯ АПП (Сайдбар и Роли)
+# ==============================================================================
+with st.sidebar:
+    st.markdown("<h2 style='color:#10B981; font-weight:800;'>🔒 КОНТУР АПП</h2>", unsafe_allow_html=True)
+    user_role = st.selectbox(
+        "Выберите личный кабинет:",
+        [
+            "🎓 Личный кабинет Физического лица", 
+            "🏢 Личный кабинет Производства", 
+            "🛠️ Кабинет Ассоциации (Управление)"
+        ]
+    )
+    st.write("---")
+    st.caption("ПромКачество.СПб v2.0")
+
+# Вывод премиум Hero-баннера из CodePen
+st.markdown("""
+    <div class="hero-banner">
+        <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
+        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ</div>
     </div>
-    <div class="role-selector-box">
-      <label>Выберите личный кабинет:</label>
-      <select id="role-selector">
-        <option value="citizen">&#127891; Личный кабинет Физического лица</option>
-        <option value="factory">&#127981; Личный кабинет Производства</option>
-        <option value="association">&#128736; Кабинет Ассоциации (Управление)</option>
-      </select>
-    </div>
-    <div class="sidebar-footer">ПромКачество.СПб v2.0</div>
-  </aside>
+""", unsafe_allow_html=True)
 
-  <main class="cyber-main">
-    <div class="hero-banner" id="cyber-banner">
-      <div class="hero-title">&#127981; Промышленная экосистема опережающего ДПО «ПромКачество»</div>
-      <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ</div>
-    </div>
+# Считываем живую статистику для шапки
+conn = sqlite3.connect(DB_NAME)
+citizens_df = pd.read_sql_query("SELECT * FROM citizens", conn)
+payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
+courses_df = pd.read_sql_query("SELECT * FROM courses", conn)
+conn.close()
 
-    <!-- ПАНЕЛЬ 1: ФИЗИЧЕСКИЕ ЛИЦА -->
-    <section id="panel-citizen" class="cyber-panel">
-      <h3>&#127891; Портал обучения и Паспорт Навыков</h3>
-      <div class="glass-form">
-        <h4>&#128221; Профильная анкета и загрузка документов</h4>
-        <div class="form-grid">
-          <input type="text" id="c_fio" placeholder="ФИО полностью" value="Иванов Игорь Игоревич">
-          <input type="text" id="c_phone" placeholder="Номер телефона" value="+7(900)111-22-33">
-          <input type="email" id="c_email" placeholder="E-mail" value="ivanov@spb.ru">
-          <input type="text" id="c_edu" placeholder="Где учились" value="СПбПУ">
-        </div>
-        <div class="form-grid mt-3">
-          <input type="text" id="c_pass" placeholder="Паспорт (Серия, Номер)">
-          <input type="text" id="c_diploma" placeholder="Диплом (Серия, Номер)">
-          <input type="text" id="c_work" placeholder="Трудовая книжка (Номер)">
-        </div>
-        <div style="margin-top: 15px;">
-          <textarea id="c_skills" placeholder="Расскажите о ваших навыки и опыт работы..."></textarea>
-        </div>
-        <div class="checkbox-line">
-          <input type="checkbox" id="c_gdpr" checked>
-          <label for="c_gdpr">Согласие на обработку персональных данных граждан РФ</label>
-        </div>
-        <button class="cyber-btn" onclick="saveCitizen()">Сохранить анкету соискателя</button>
-      </div>
+# ==============================================================================
+# КОНТУР 1: ФИЗИЧЕСКИЕ ЛИЦА
+# ==============================================================================
+if user_role == "🎓 Личный кабинет Физического лица":
+    st.markdown("### 🎓 Портал обучения и Паспорт Навыков")
+    
+    with st.form("citizen_form", clear_on_submit=False):
+        st.markdown("<h4 style='color:#34D399;'>📝 Профильная анкета и загрузка документов</h4>", unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
+        c_fio = col1.text_input("ФИО соискателя полностью:", value="Иванов Игорь Игоревич")
+        c_phone = col2.text_input("Номер телефона для связи:", value="+7(900)111-22-33")
+        c_email = col3.text_input("E-mail соискателя:", value="ivanov@spb.ru")
+        
+        col4, col5, col6 = st.columns(3)
+        c_pass = col4.text_input("Паспорт (Серия, Номер):")
+        c_diploma = col5.text_input("Диплом (Серия, Номер):")
+        c_work = col6.text_input("Трудовая книжка (Номер):")
+        
+        c_skills = st.text_area("Расскажите о ваших навыках и опыте работы:")
+        c_gdpr = st.checkbox("Согласие на обработку персональных данных граждан РФ", value=True)
+        
+        if st.form_submit_button("Сохранить анкету соискателя", type="primary"):
+            if c_fio.strip() and c_phone.strip():
+                conn = sqlite3.connect(DB_NAME)
+                conn.execute("""
+                    INSERT INTO citizens (fio, phone, email, passport, diploma, workbook, skills, gdpr, current_status) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Обучение')
+                """, (c_fio.strip(), c_phone.strip(), c_email.strip(), c_pass.strip(), c_diploma.strip(), c_work.strip(), c_skills.strip(), 1 if c_gdpr else 0))
+                conn.commit()
+                conn.close()
+                st.success("Анкета успешно сохранена в реляционной СУБД SQLite!")
+                st.rerun()
 
-      <div class="glass-form mt-3">
-        <h4>&#129302; Тест компетенций на производстве</h4>
-        <p class="question">Критическая аварийная ситуация: Датчик стойки управления Syntec выдал перегрев шпинделя станка ЧПУ за 20 млн рублей. Ваши действия?</p>
-        <div class="radio-group">
-          <label><input type="radio" name="q1" value="wrong1"> Игнорировать и закончить деталь</label>
-          <label><input type="radio" name="q1" value="correct"> Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера</label>
-          <label><input type="radio" name="q1" value="wrong2"> Снизить обороты шпинделя вручную на 20%</label>
-        </div>
-        <button class="cyber-btn" onclick="submitTest()">Отправить ответы экзамена</button>
-      </div>
-    </section>
+    # Блок теста компетенций
+    with st.form("test_form"):
+        st.markdown("<h4 style='color:#34D399;'>🤖 Тест компетенций на производстве</h4>", unsafe_allow_html=True)
+        st.markdown("**КЕЙС:** Критическая аварийная ситуация: Датчик стойки управления Syntec выдал перегрев шпинделя станка ЧПУ за 20 млн рублей. Ваши действия?")
+        ans = st.radio("Выберите правильный алгоритм действий:", [
+            "Игнорировать и закончить деталь",
+            "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера",
+            "Снизить обороты шпинделя вручную на 20%"
+        ], index=None)
+        
+        if st.form_submit_button("Отправить ответы экзамена", type="primary"):
+            if ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
+                st.success("🎯 Ответ верен! Вам присвоен наивысший статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
+            else:
+                st.error("❌ Алгоритм неверен! Допуск к оборудованию заблокирован автоматикой платформы.")
 
-    <!-- ПАНЕЛЬ 2: ПРОИЗВОДСТВА -->
-    <section id="panel-factory" class="cyber-panel">
-      <h3>&#127981; Кабинет Завода-Производителя оборудования</h3>
-      <div class="form-grid-3">
-        <div class="glass-card"><div class="card-title">ТЕКУЩИЙ ТАРИФ</div><div class="card-value">ПОШТУЧНЫЙ ВЫКУП</div></div>
-        <div class="glass-card"><div class="card-title">ОСТАТОК АНКЕТ</div><div class="card-value" style="color: #3B82F6;">5 ШТ.</div></div>
-        <div class="glass-card"><div class="card-title">БЕЗЛИМИТНЫЙ ДОСТУП</div><div class="card-value" style="color: #EF4444;">&#10060; ВЫКЛ.</div></div>
-      </div>
-
-      <div class="glass-form mt-3">
-        <h4>&#128179; Тарифная сетка и покупка лицензии</h4>
-        <div class="tariff-grid">
-          <div class="tariff-box">
-            <h5>&#128230; Штучный пакет</h5><p class="price">15 000 ₽</p><p class="desc">Доступ к 5 проверенным анкетам соискателей</p>
-            <button class="cyber-btn-buy mt-3" onclick="buyTariff('piece')">Купить пакет</button>
-          </div>
-          <div class="tariff-box popular">
-            <h5>&#9876; Безлимитный Год</h5><p class="price">150 000 ₽</p><p class="desc">Полный безлимит на выгрузку "Железных мастеров"</p>
-            <button class="cyber-btn-buy mt-3" onclick="buyTariff('unlimit')">Активировать Безлимит</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="glass-form mt-3">
-        <h4>&#128229; Загрузка b2b-стандарта ДПО</h4>
-        <div class="form-grid">
-          <input type="text" id="f_inn" placeholder="ИНН предприятия">
-          <input type="text" id="f_title" placeholder="Название программы обучения">
+# ==============================================================================
+# КОНТУР 2: ПРОИЗВОДСТВА
+# ==============================================================================
+elif user_role == "🏢 Личный кабинет Производства":
