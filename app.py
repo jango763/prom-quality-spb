@@ -141,13 +141,57 @@ def init_db():
     """)
     
     cursor.execute("SELECT COUNT(*) FROM citizens")
-    if cursor.fetchone()[0] == 0:
-        # ТАК ДОЛЖНО БЫТЬ (ИСПРАВЛЕННЫЙ ВАРИАНТ):
+# ==============================================================================
+# ИСПРАВЛЕННЫЙ БЛОК ИНИЦИАЛИЗАЦИИ И КЭШИРОВАНИЯ БАЗЫ ДАННЫХ (Строки 144-150+)
+# ==============================================================================
+
 @st.cache_resource
+def get_db_connection():
+    """Кэшируем подключение к СУБД, чтобы избежать повторной инициализации при каждом ре rerun"""
+    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    return conn
+
 def init_db():
-    """Инициализация базы данных и создание таблицы специалистов."""
-    conn = sqlite3.connect(":memory:", check_same_thread=False)
+    """Инициализация структуры таблиц базы данных под 3 кабинета"""
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL;")
+    
+    # Создаем таблицы (Граждане, Курсы ДПО, Платежи)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS citizens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fio TEXT, phone TEXT, email TEXT, education TEXT,
+            passport TEXT, diploma TEXT, workbook TEXT, skills TEXT,
+            gdpr INTEGER DEFAULT 0, score INTEGER DEFAULT 0, status TEXT DEFAULT 'Обучение'
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            inn TEXT, title TEXT, model TEXT, text TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tariff TEXT, amount REAL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # ПРОВЕРКА НА ПУСТОТУ: Если данных нет — заполняем демо-записями
+    cursor.execute("SELECT COUNT(*) FROM citizens")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO citizens (fio, phone, email, education, current_status) VALUES ('Никифоров Артур Владимирович', '+7(921)555-44-33', 'artur@mail.ru', 'Высшее техническое', 'Железный специалист')")
+        cursor.execute("INSERT INTO payments (tariff, amount) VALUES ('Безлимитный Год', 150000.0)")
+    
+    conn.commit()
+    conn.close()
+
+# Запускаем один раз при старте
+init_db()
+
     
     # Сначала создаем структуру таблицы, чтобы SQL знал, куда писать данные
     cursor.execute("""
