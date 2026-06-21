@@ -1,61 +1,3 @@
-import streamlit as st
-import streamlit.components.v1 as components
-import sqlite3
-
-# Скрываем стандартные элементы оформления Streamlit, чтобы развернуть CodePen во весь экран
-st.markdown("""
-    <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        .block-container {padding: 0px !important; margin: 0px !important; max-width: 100% !important;}
-        iframe {border: none !important; width: 100% !important; min-height: 100vh !important;}
-    </style>
-""", unsafe_allow_html=True)
-
-# Имя нашей базы данных под новые расширенные поля
-DB_NAME = "production_control_enterprise_v2.db"
-
-def init_db():
-    """Инициализация базы данных SQLite со всеми полями под 3 кабинета"""
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL;")
-    
-    # Таблица граждан
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS citizens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT, phone TEXT, email TEXT, education TEXT,
-            passport TEXT, diploma TEXT, workbook TEXT, skills TEXT,
-            gdpr INTEGER DEFAULT 0, score INTEGER DEFAULT 0, status TEXT DEFAULT 'Обучение'
-        )
-    """)
-    
-    # Таблица стандартов ДПО от заводов
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS courses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            inn TEXT, title TEXT, model TEXT, text TEXT
-        )
-    """)
-    
-    # Таблица транзакций (подписок)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tariff TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# ==============================================================================
-# ОБЪЕДИНЕННЫЙ КОД ИЗ CODEPEN: HTML + CSS + JS (С использованием сырой r"" строки)
-# ==============================================================================
-html_code = r"""
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -172,3 +114,38 @@ html_code = r"""
 
       <div class="glass-form mt-3">
         <h4>&#129302; Тест компетенций на производстве</h4>
+        <p class="question">Критическая аварийная ситуация: Датчик стойки управления Syntec выдал перегрев шпинделя станка ЧПУ за 20 млн рублей. Ваши действия?</p>
+        <div class="radio-group">
+          <label><input type="radio" name="q1" value="wrong1"> Игнорировать и закончить деталь</label>
+          <label><input type="radio" name="q1" value="correct"> Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера</label>
+          <label><input type="radio" name="q1" value="wrong2"> Снизить обороты шпинделя вручную на 20%</label>
+        </div>
+        <button class="cyber-btn" onclick="submitTest()">Отправить ответы экзамена</button>
+      </div>
+    </section>
+
+    <!-- ПАНЕЛЬ 2: ПРОИЗВОДСТВА -->
+    <section id="panel-factory" class="cyber-panel">
+      <h3>&#127981; Кабинет Завода-Производителя оборудования</h3>
+      <div class="form-grid-3">
+        <div class="glass-card"><div class="card-title">ТЕКУЩИЙ ТАРИФ</div><div class="card-value">ПОШТУЧНЫЙ ВЫКУП</div></div>
+        <div class="glass-card"><div class="card-title">ОСТАТОК АНКЕТ</div><div class="card-value" style="color: #3B82F6;">5 ШТ.</div></div>
+        <div class="glass-card"><div class="card-title">БЕЗЛИМИТНЫЙ ДОСТУП</div><div class="card-value" style="color: #EF4444;">&#10060; ВЫКЛ.</div></div>
+      </div>
+
+      <div class="glass-form mt-3">
+        <h4>&#128179; Тарифная сетка и покупка лицензии</h4>
+        <div class="tariff-grid">
+          <div class="tariff-box">
+            <h5>&#128230; Штучный пакет</h5><p class="price">15 000 ₽</p><p class="desc">Доступ к 5 проверенным анкетам соискателей</p>
+            <button class="cyber-btn-buy mt-3" onclick="buyTariff('piece')">Купить пакет</button>
+          </div>
+          <div class="tariff-box popular">
+            <h5>&#9876; Безлимитный Год</h5><p class="price">150 000 ₽</p><p class="desc">Полный безлимит на выгрузку "Железных мастеров"</p>
+            <button class="cyber-btn-buy mt-3" onclick="buyTariff('unlimit')">Активировать Безлимит</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-form mt-3">
+        <h4>&#128229; Загрузка b2b-стандарта ДПО</h4>
