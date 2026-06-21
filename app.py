@@ -74,37 +74,26 @@ if "payments_data" not in st.session_state:
 if "courses_data" not in st.session_state:
     st.session_state["courses_data"] = []
 
-# Конвертируем сквозную память в привычные DataFrame
-citizens_df = pd.DataFrame(st.session_state["citizens_data"])
-payments_df = pd.DataFrame(st.session_state["payments_data"])
-courses_df = pd.DataFrame(st.session_state["courses_data"])
-
 # ==============================================================================
-# 3. СТАРТОВАЯ ВИТРИНА ЭКОСИСТЕМЫ АПП СПБ
+# 3. ОФИЦИАЛЬНОЕ ЖЕСТКОЕ НАПРАВЛЕНИЕ ПУТИ В ПАПКИ (ST.NAVIGATION)
 # ==============================================================================
-with st.sidebar:
-    st.markdown("<h2 style='color:#10B981; font-weight:800; text-shadow: 0 0 15px rgba(16, 185, 129, 0.3);'>🔒 НАВИГАЦИЯ АПП</h2>", unsafe_allow_html=True)
-    st.write("---")
-    st.caption("ПромКачество.СПб v2.0")
+# Явно указываем Streamlit, какие физические файлы из папки запустить на экране
+page_citizen = st.Page("pages/1_🎓_Гражданин_РФ.py", title="🎓 Личный кабинет Физического лица", icon="🎓")
+page_factory = st.Page("pages/2_🏢_Производство.py", title="🏢 Личный кабинет Производства", icon="🏢")
+page_association = st.Page("pages/3_🛠️_Ассоциация.py", title="🛠️ Кабинет Ассоциации (Управление)", icon="🛠️")
 
-# Вывод премиум Hero-баннера АПП
+# Объединяем страницы под общим киберпанк-заголовком Сайдбара
+pg = st.navigation({
+    "🔒 КОНТУР УПРАВЛЕНИЯ АПП": [page_citizen, page_factory, page_association]
+})
+
+# Вывод премиум Hero-баннера АПП в шапку
 st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
-        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ. Используйте официальное боковое меню страниц для перехода в личные кабинеты.</div>
+        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ. Используйте меню навигации слева.</div>
     </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<h3 style='color:#10B981; font-weight:800;'>📊 Сводные KPI экосистемы в реальном времени</h3>", unsafe_allow_html=True)
-col_k1, col_k2, col_k3 = st.columns(3)
-
-with col_k1:
-    st.markdown(f'<div class="glass-card"><div class="card-title">Развернуто b2b-стандартов</div><div class="card-value">{len(courses_df)} моделей</div></div>', unsafe_allow_html=True)
-with col_k2:
-    st.markdown(f'<div class="glass-card"><div class="card-title">Зарегистрировано граждан</div><div class="card-value">{len(citizens_df)} анкет</div></div>', unsafe_allow_html=True)
-with col_k3:
-    total_rev = payments_df['amount'].sum() if not payments_df.empty else 0
-    st.markdown(f'<div class="glass-card"><div class="card-title">Общая сумма привлеченных оплат</div><div class="card-value" style="color:#F59E0B;">{total_rev:,.0f} ₽</div></div>', unsafe_allow_html=True)
-
-st.write("---")
-st.info("💡 Путь успешно перенаправлен в папки! Используйте встроенное боковое меню страниц слева («1 🎓 Гражданин РФ», «2 🏢 Производство», «3 🛠️ Ассоциация»). Все данные между файлами синхронизируются автоматически.")
+# Запускаем выбранную в данный момент страницу из папки pages
+pg.run()
