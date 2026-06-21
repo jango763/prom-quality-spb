@@ -113,8 +113,7 @@ st.markdown("""
 # ==============================================================================
 # 2. БАЗОВЫЙ СЛОЙ ДАННЫХ SQLITE (ФИКС ОШИБКИ STRUCTDB ЧЕРЕЗ СМЕНУ ВЕРСИИ НА V4)
 # ==============================================================================
-DB_NAME = "production_control_enterprise_final_v4.db"
-
+DB_NAME = "production_control_enterprise_final_v9.db"
 def init_db():
     """Инициализация единой базы данных для всех кабинетов"""
     conn = sqlite3.connect(DB_NAME)
