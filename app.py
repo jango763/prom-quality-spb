@@ -192,48 +192,38 @@ st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильна
                     "passport": c_pass.strip(), 
                     "diploma": c_diploma.strip(), 
                     "workbook": c_work.strip(), 
-                    "skills": c_skills.strip(), 
-                    "gdpr": 1 if c_gdpr else 0, 
-                    "current_status": "Обучение"
-                })
-                st.toast("✓ Анкета соискателя успешно сохранена в системе!")
-                st.rerun()
-    with st.form("citizen_form", clear_on_submit=False):
-        st.markdown("<h4 style='color:#34D399; font-weight:700;'>📝 Профильная анкетa и загрузка документов</h4>", unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-        c_fio = col1.text_input("ФИО соискателя полностью:", value="Иванов Игорь Игоревич")
-        c_phone = col2.text_input("Номер телефона для связи:", value="+7(900)111-22-33")
-        c_email = col3.text_input("E-mail соискателя:", value="ivanov@spb.ru")
-        
-        col4, col5, col6 = st.columns(3)
-        c_pass = col4.text_input("Паспорт (Серия, Номер):", placeholder="4011 123456")
-        c_diploma = col5.text_input("Диплом (Серия, Номер):", placeholder="№78-01")
-        c_work = col6.text_input("Трудовая книжка (Номер):", placeholder="№ТК-99")
-        
-        c_skills = st.text_area("Расскажите о ваших навыках и опыте работы (анкета о себе):")
-        c_gdpr = st.checkbox("Согласие на обработку персональных данных граждан РФ", value=True)
-        
-        if st.form_submit_button("Сохранить анкету соискателя", type="primary"):
-            if c_fio.strip() and c_phone.strip():
-                conn = sqlite3.connect(DB_NAME)
-                conn.execute("""
-                    INSERT INTO citizens (fio, phone, email, education, passport, diploma, workbook, skills, gdpr, current_status) 
-                    VALUES (?, ?, ?, 'Высшее техническое', ?, ?, ?, ?, ?, 'Обучение')
-                """, (c_fio.strip(), c_phone.strip(), c_email.strip(), c_pass.strip(), c_diploma.strip(), c_work.strip(), c_skills.strip(), 1 if c_gdpr else 0))
-                conn.commit()
-                conn.close()
-                st.toast("Анкета успешно сохранена в СУБД SQLite!")
-                st.rerun()
-
-    # Блок теста компетенций
-    with st.form("test_form"):
-        st.markdown("<h4 style='color:#34D399; font-weight:700;'>🤖 Тест компетенций на производстве</h4>", unsafe_allow_html=True)
     # Блок теста компетенций
     with st.form("test_form"):
         st.markdown("<h4 style='color:#34D399; font-weight:700;'>🤖 Тест компетенций на производстве</h4>", unsafe_allow_html=True)
         st.markdown("**КЕЙС:** Критическая аварийная ситуация: Датчик стойки управления Syntec выдал перегрев шпинделя станка ЧПУ за 20 млн рублей. Ваши действия?")
         ans = st.radio("Выберите правильный алгоритм действий:", [
             "Игнорировать и закончить деталь",
+            "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера",
+            "Снизить обороты шпинделя вручную на 20%"
+        ], index=None)
+        
+        if st.form_submit_button("Отправить ответы экзамена", type="primary"):
+            if ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
+                # Меняем статус последнего добавленного соискателя на "Железный специалист" в памяти
+                if st.session_state["citizens_data"]:
+                    st.session_state["citizens_data"][-1]["current_status"] = "Железный специалист"
+                st.success("🎯 Ответ верен! Вам присвоен наивысший статус: ЖЕЛЕЗНЫЙ СПЕЦИАЛИСТ.")
+                st.rerun()
+            else:
+                st.error("❌ Алгоритм неверен! Допуск к оборудованию заблокирован автоматикой платформы.")
+
+# ==============================================================================
+# КАБИНЕТ №2: ПРОИЗВОДСТВА (ЗАВОДЫ)
+# ==============================================================================
+elif user_role == "🏢 Личный кабинет Производства":
+    st.markdown("<h3>🏢 Кабинет Завода-Производителя оборудования</h3>", unsafe_allow_html=True)
+    
+    # Сетка объемных карточек KPI из CodePen
+    c1, c2, c3 = st.columns(3)
+    with c1: st.markdown('<div class="glass-card"><div class="card-title">ТЕКУЩИЙ ТАРИФ</div><div class="card-value">ПОШТУЧНЫЙ ВЫКУП</div></div>', unsafe_allow_html=True)
+    with c2: st.markdown('<div class="glass-card"><div class="card-title">ОСТАТОК АНКЕТ</div><div class="card-value" style="color: #3B82F6;">5 ШТ.</div></div>', unsafe_allow_html=True)
+    with c3: st.markdown('<div class="glass-card"><div class="card-title">БЕЗЛИМИТНЫЙ ДОСТУП</div><div class="card-value" style="color: #EF4444;">❌ ВЫКЛ.</div></div>', unsafe_allow_html=True)
+
             "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера",
             "Снизить обороты шпинделя вручную на 20%"
         ], index=None)
