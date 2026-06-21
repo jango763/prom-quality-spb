@@ -25,7 +25,6 @@
         .hero-subtitle { font-size: 14px; color: #94A3B8; margin-top: 8px; line-height: 1.4; }
 
         .cyber-panel { display: none; width: 100%; }
-        .cyber-panel h3 { font-size: 22px; font-weight: 700; color: #F8FAFC; margin-bottom: 20px; }
         .glass-form { background: rgba(17, 24, 39, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 14px; padding: 25px; margin-bottom: 20px; backdrop-filter: blur(12px); }
         .glass-form h4 { margin-top: 0; margin-bottom: 20px; font-size: 16px; color: #34D399; font-weight: 700; }
         
@@ -58,7 +57,6 @@
         .badge-success { background: rgba(16, 185, 129, 0.15); color: #10B981; }
         .badge-warning { background: rgba(245, 158, 11, 0.15); color: #F59E0B; }
         .mt-3 { margin-top: 20px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -103,7 +101,7 @@
           <input type="text" id="c_work" placeholder="Трудовая книжка (Номер)">
         </div>
         <div style="margin-top: 15px;">
-          <textarea id="c_skills" placeholder="Расскажите о ваших навыках и опыте работы..."></textarea>
+          <textarea id="c_skills" placeholder="Расскажите о ваших навыки и опыт работы..."></textarea>
         </div>
         <div class="checkbox-line">
           <input type="checkbox" id="c_gdpr" checked>
@@ -149,3 +147,6 @@
 
       <div class="glass-form mt-3">
         <h4>&#128229; Загрузка b2b-стандарта ДПО</h4>
+        <div class="form-grid">
+          <input type="text" id="f_inn" placeholder="ИНН предприятия">
+          <input type="text" id="f_title" placeholder="Название программы обучения">
