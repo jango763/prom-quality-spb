@@ -111,9 +111,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ SQLITE (WAL)
+# 2. БАЗОВЫЙ СЛОЙ ДАННЫХ SQLITE (ФИКС ОШИБКИ STRUCTDB ЧЕРЕЗ СМЕНУ ВЕРСИИ НА V4)
 # ==============================================================================
-DB_NAME = "production_control_enterprise_final_v1.db"
+DB_NAME = "production_control_enterprise_final_v4.db"
 
 def init_db():
     """Инициализация единой базы данных для всех кабинетов"""
@@ -146,7 +146,10 @@ def init_db():
     
     cursor.execute("SELECT COUNT(*) FROM citizens")
     if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO citizens (fio, phone, email, education, current_status) VALUES ('Никифоров Артур Владимирович', '+7(921)555-44-33', 'artur@mail.ru', 'Высшее техническое', 'Железный специалист')")
+        cursor.execute("""
+            INSERT INTO citizens (fio, phone, email, education, passport, diploma, workbook, skills, gdpr, current_status) 
+            VALUES ('Никифоров Артур Владимирович', '+7(921)555-44-33', 'artur@mail.ru', 'Высшее техническое', '', '', '', '', 1, 'Железный специалист')
+        """)
         cursor.execute("INSERT INTO payments (tariff, amount) VALUES ('Безлимитный Год', 150000.0)")
         
     conn.commit()
@@ -210,8 +213,8 @@ if user_role == "🎓 Личный кабинет Физического лиц�
             if c_fio.strip() and c_phone.strip():
                 conn = sqlite3.connect(DB_NAME)
                 conn.execute("""
-                    INSERT INTO citizens (fio, phone, email, passport, diploma, workbook, skills, gdpr, current_status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Обучение')
+                    INSERT INTO citizens (fio, phone, email, education, passport, diploma, workbook, skills, gdpr, current_status) 
+                    VALUES (?, ?, ?, 'Высшее техническое', ?, ?, ?, ?, ?, 'Обучение')
                 """, (c_fio.strip(), c_phone.strip(), c_email.strip(), c_pass.strip(), c_diploma.strip(), c_work.strip(), c_skills.strip(), 1 if c_gdpr else 0))
                 conn.commit()
                 conn.close()
@@ -230,5 +233,3 @@ if user_role == "🎓 Личный кабинет Физического лиц�
         
         if st.form_submit_button("Отправить ответы экзамена", type="primary"):
             if ans == "Нажать аварийную кнопку STOP, перекрыть СОЖ и вызвать мастера":
-                conn = sqlite3.connect(DB_NAME)
-                conn.execute("UPDATE citizens SET current_status = 'Железный специалист' WHERE phone = ?", (c_phone.strip(),))
