@@ -142,12 +142,37 @@ def init_db():
     
     cursor.execute("SELECT COUNT(*) FROM citizens")
     if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO citizens (fio, phone, email, education, current_status) VALUES ('Никифоров Артур Владимирович', '+7(921)555-44-33', 'artur@mail.ru', 'Высшее техническое', 'Железный специалист')")
-        cursor.execute("INSERT INTO payments (tariff, amount) VALUES ('Безлимитный Год', 150000.0)")
+        # ТАК ДОЛЖНО БЫТЬ (ИСПРАВЛЕННЫЙ ВАРИАНТ):
+@st.cache_resource
+def init_db():
+    """Инициализация базы данных и создание таблицы специалистов."""
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
+    cursor = conn.cursor()
+    
+    # Сначала создаем структуру таблицы, чтобы SQL знал, куда писать данные
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS citizens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fio TEXT,
+            phone TEXT,
+            email TEXT,
+            education TEXT,
+            current_status TEXT
+        )
+    """)
+    
+    # Теперь добавляем запись (база данных примет её без ошибок)
+    cursor.execute("""
+        INSERT INTO citizens (fio, phone, email, education, current_status) 
+        VALUES ('Никифоров Артур Владимирович', '+7(921)555-44-33', 'artur@mail.ru', 'Высшее техническое', 'Железный специалист')
+    """)
+    
     conn.commit()
-    conn.close()
+    return conn
 
-init_db()
+# Безопасный вызов функции
+conn = init_db()
+
 
 # ==============================================================================
 # 3. НАВИГАЦИЯ АПП (Сайдбар и Роли из CodePen)
