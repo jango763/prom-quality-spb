@@ -100,12 +100,7 @@ st.markdown("""
         .desc { font-size: 13px; color: #64748B; line-height: 1.4; }
 
         /* Идеальные матовые поля ввода с бирюзовым фокусом */
-        .stTextInput input,
-Error 404 (Not Found)!!1
-googleapis.com
-
-
-.stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+        .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
             background-color: rgba(2, 6, 17, 0.7) !important; color: #FFFFFF !important;
             font-weight: 500 !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; 
             border-radius: 10px !important; padding: 12px !important;
@@ -177,10 +172,7 @@ with st.sidebar:
 st.markdown("""
     <div class="academy-banner">
         <div class="academy-title">🏭 Цифровая экосистема опережающего ДПО «ПромКачество»</div>
-        <div class="academy-subtitle">Индустриальная Академия ПромКачество.СПб — это передовой b2b-портал сертификации для технических специалистов. Вместо абстрактных видеороликов вы обучаетесь по реальным интерактивным стандартам топовых промышленных производств. Выходите готовым экспертом цеха, проходите цифровые симуляции ЧПУ и получайте официальный квалификационный
-
-
-допуск к оборудованию.</div>
+        <div class="academy-subtitle">Индустриальная Академия ПромКачество.СПб — это передовой b2b-портал сертификации для технических специалистов. Вместо абстрактных видеороликов вы обучаетесь по реальным интерактивным стандартам топовых промышленных производств. Выходите готовым экспертом цеха, проходите цифровые симуляции ЧПУ и получайте официальный квалификационный допуск к оборудованию.</div>
     </div>
 """, unsafe_allow_html=True)
 
@@ -199,8 +191,7 @@ if user_role == "🏠 Стартовая витрина Академии":
     with v3:
         st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">БЕЗОПАСНОСТЬ</div><div class="pyrus-card-value">Регламенты ТБ</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Критические инструкции эксплуатации шпинделей, защита дорогостоящих узлов от перегрева и действия соискателя в аварийных ситуациях.</div></div>', unsafe_allow_html=True)
         
-    st.markdown("
-", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     with st.form("certificate_download_form"):
         st.markdown("<h4 style='color:#06B6D4; font-weight:700;'>📋 Проверка подлинности и выгрузка квалификационного документа</h4>", unsafe_allow_html=True)
         st.write("Сдайте тестирование на симуляторе, чтобы активировать печать АПП и сгенерировать официальный Сертификат Допуска.")
@@ -232,10 +223,7 @@ elif user_role == "🎓 Личный кабинет Гражданина РФ":
             c_diploma = col5.text_input("Диплом об образовании:", placeholder="№78-01")
             c_work = col6.text_input("Трудовая книжка (Номер):", placeholder="№ТК-99")
             
-            c_edu_place = st.selectbox("Направление специализации ДПО:",
-
-
-[
+            c_edu_place = st.selectbox("Направление специализации ДПО:", [
                 "Оператор станков с ЧПУ (Токарная группа / стойка Syntec)", 
                 "Наладчик станков и манипуляторов с ЧПУ (Фрезерная группа)", 
                 "Программирование CAD/CAM систем и симуляция обработки"
@@ -260,12 +248,10 @@ elif user_role == "🎓 Личный кабинет Гражданина РФ":
 
         if st.session_state["citizens_data"]:
             curr = st.session_state["citizens_data"][-1]
-            st.markdown("
-", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
             st.markdown(f"""
                 <div class="passport-header">
-                    <span style='color:#06B6D4; font-weight:700;'>💳 ЦИФРОВОЙ ПАСПОРТ НАВЫКОВ ЭКСПЕРТА:</span> {curr['fio']}
-
+                    <span style='color:#06B6D4; font-weight:700;'>💳 ЦИФРОВОЙ ПАСПОРТ НАВЫКОВ ЭКСПЕРТА:</span> {curr['fio']}<br>
                     <small style='color:#FFFFFF;'>Курс ДПО: {curr.get('education', 'Общий')} | Юридический договор: {curr.get('contract_status', 'Не подписан')}</small>
                 </div>
             """, unsafe_allow_html=True)
@@ -296,13 +282,7 @@ elif user_role == "🎓 Личный кабинет Гражданина РФ":
 # КОНТУР №2: ПРОИЗВОДСТВА (ЗАВОДЫ)
 # ==============================================================================
 elif user_role == "🏢 Личный кабинет Производства":
-    st.markdown("<h3 style='color:#FFFFFF;
-st.info is For Sale | Identity Digital
-st.info is For Sale | Identity Digital
-st.info
-
-
-font-weight:700;'>🏢 Портал Партнеров и Интеграторов промышленного оборудования</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#FFFFFF; font-weight:700;'>🏢 Портал Партнеров и Интеграторов промышленного оборудования</h3>", unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns(3)
     with c1: st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">ЛИЦЕНЗИЯ ПРЕДПРИЯТИЯ</div><div class="pyrus-card-value">ПОШТУЧНЫЙ НАЙМ</div></div>', unsafe_allow_html=True)
@@ -351,13 +331,9 @@ elif user_role == "🛠️ Кабинет Администратора (Анал
     total_revenue = payments_df['amount'].sum() if not payments_df.empty else 165000
     
     with a1: st.markdown(f'<div class="pyrus-card"><div class="pyrus-card-title">ВCEГО ЭКСПЕРТОВ В СИСТЕМЕ</div><div class="pyrus-card-value">{total_phys_count} человек</div></div>', unsafe_allow_html=True)
-    with
-
-
-a2: st.markdown(f'<div class="pyrus-card"><div class="pyrus-card-title">АКТИВНЫХ ТРЕКОВ ОБУЧЕНИЯ</div><div class="pyrus-card-value" style="color: #3B82F6;">{total_factories_count} направлений</div></div>', unsafe_allow_html=True)
+    with a2: st.markdown(f'<div class="pyrus-card"><div class="pyrus-card-title">АКТИВНЫХ ТРЕКОВ ОБУЧЕНИЯ</div><div class="pyrus-card-value" style="color: #3B82F6;">{total_factories_count} направлений</div></div>', unsafe_allow_html=True)
     with a3: st.markdown(f'<div class="pyrus-card"><div class="pyrus-card-title">ПРИВЛЕЧЕННЫЙ ОБЪЕМ ИНВЕСТИЦИЙ</div><div class="pyrus-card-value" style="color: #F59E0B;">{total_revenue:,.0f} ₽</div></div>', unsafe_allow_html=True)
-    st.markdown("
-<h4 style='color:#06B6D4; font-weight:700;'>📋 Мониторинг готовности студентов и юридический аудит договоров</h4>", unsafe_allow_html=True)
+    st.markdown("<br><h4 style='color:#06B6D4; font-weight:700;'>📋 Мониторинг готовности студентов и юридический аудит договоров</h4>", unsafe_allow_html=True)
     if not citizens_df.empty:
         display_df = citizens_df[['fio', 'progress', 'contract_status', 'current_status']].rename(columns={
             'fio': 'ФИО Студента / Специалиста',
@@ -369,8 +345,7 @@ a2: st.markdown(f'<div class="pyrus-card"><div class="pyrus-card-title">АКТИ
     else:
         st.info("Реестр пуст.")
         
-    st.markdown("
-<h4 style='color:#06B6D4; font-weight:700;'>📊 Коммерческий аудит оплат b2b-лицензий</h4>", unsafe_allow_html=True)
+    st.markdown("<br><h4 style='color:#06B6D4; font-weight:700;'>📊 Коммерческий аудит оплат b2b-лицензий</h4>", unsafe_allow_html=True)
     if not payments_df.empty:
         st.dataframe(payments_df[['id', 'tariff', 'amount', 'timestamp']].rename(columns={
             'id': 'ID Проводки', 'tariff': 'Выкупленная программа / Подписка', 'amount': 'Сумма (₽)', 'timestamp': 'Дата платежа'
