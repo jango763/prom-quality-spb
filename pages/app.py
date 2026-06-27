@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # ==============================================================================
-# 1. СКВОЗНЫЕ СТИЛИ ИЗ CODEPEN (Glassmorphism, Неон, Фон #0B0F19)
+# 1. СКВОЗНЫЕ ПРЕМИУМ-СТИЛИ ИЗ CODEPEN (Glassmorphism, Неон, Фон #0B0F19)
 # ==============================================================================
 st.set_page_config(page_title="ПромКачество.СПб | Система Допусков", layout="wide", page_icon="🏭")
 
@@ -51,6 +51,10 @@ st.markdown("""
             background-color: rgba(15, 23, 42, 0.8) !important; color: #FFFFFF !important;
             border: 1px solid rgba(16, 185, 129, 0.2) !important; border-radius: 8px !important;
         }
+        
+        /* Стилизация официального бокового меню навигации Streamlit */
+        section[data-testid="stSidebarNav"] { background-color: #0D1322 !important; }
+        section[data-testid="stSidebarNav"] span { color: #F8FAFC !important; font-weight: 600 !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -59,7 +63,7 @@ st.markdown("""
 # ==============================================================================
 if "citizens_data" not in st.session_state:
     st.session_state["citizens_data"] = [
-        {"fio": "Никифоров Артур Владимирович", "phone": "+7(921)555-44-33", "email": "artur@mail.ru", "education": "Высшее техническое", "passport": "4012 987654", "diploma": "№78-05", "workbook": "№ТК-12", "skills": "Фрезеровщик ЧПУ", "gdpr": 1, "current_status": "Железный специалист"}
+        {"fio": "Никифоров Артур Владимирович", "phone": "+7(921)555-44-33", "email": "artur@mail.ru", "education": "Высшее техническое", "passport": "4012 987654", "diploma": "№78-05", "workbook": "№ТК-12", "skills": "Фрезеровщик ЧПУ", "gdpr": 1, "contract_status": "Подписан", "progress": 100, "current_status": "Железный специалист"}
     ]
 
 if "payments_data" not in st.session_state:
@@ -76,12 +80,26 @@ payments_df = pd.DataFrame(st.session_state["payments_data"])
 courses_df = pd.DataFrame(st.session_state["courses_data"])
 
 # ==============================================================================
-# 3. СТАРТОВАЯ ВИТРИНА ЭКОСИСТЕМЫ АПП СПБ
+# 3. ОФИЦИАЛЬНОЕ ЖЕСТКОЕ НАПРАВЛЕНИЕ ПУТИ В ПАПКИ PAGES (С ЗАЩИТОЙ URL)
 # ==============================================================================
+# url_path принудительно делает веб-ссылки английскими во избежание сбоев автопереводчиков
+page_citizen = st.Page("pages/1_🎓_Гражданин_РФ.py", title="🎓 Личный кабинет Физического лица", icon="🎓", url_path="student")
+page_factory = st.Page("pages/2_🏢_Производство.py", title="🏢 Личный кабинет Производства", icon="🏢", url_path="factory")
+page_association = st.Page("pages/3_🛠️_Ассоциация.py", title="🛠️ Кабинет Ассоциации (Управление)", icon="🛠️", url_path="association")
+
+# Склеиваем страницы в общее меню
+pg = st.navigation({
+    "🔒 КОНТУР УПРАВЛЕНИЯ АПП": [page_citizen, page_factory, page_association]
+})
+
+# ==============================================================================
+# 4. СТАРТОВАЯ ВИТРИНА ЭКОСИСТЕМЫ АПП СПБ
+# ==============================================================================
+# Вывод премиум Hero-баннера АПП
 st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🏭 Промышленная экосистема опережающего ДПО «ПромКачество»</div>
-        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ. Все кабинеты вынесены в левое навигационное меню.</div>
+        <div class="hero-subtitle">Цифровой механизм формирования рынков сбыта отечественного оборудования через обучение граждан РФ. Используйте меню навигации слева.</div>
     </div>
 """, unsafe_allow_html=True)
 
@@ -97,4 +115,6 @@ with col_k3:
     st.markdown(f'<div class="glass-card"><div class="card-title">Общая сумма привлеченных оплат</div><div class="card-value" style="color:#F59E0B;">{total_rev:,.0f} ₽</div></div>', unsafe_allow_html=True)
 
 st.write("---")
-st.info("💡 Навигация готова! Используйте боковую панель слева, чтобы открыть Личный кабинет Гражданина, Завода или Ассоциации. Данные синхронизируются автоматически.")
+
+# Передаем управление кодовой базе страниц папки pages
+pg.run()
