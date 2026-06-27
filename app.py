@@ -185,16 +185,30 @@ if user_role == "🏠 Стартовая витрина Академии":
     # Визуальный пошаговый онбординг (убирает эффект "тяжелого" сайта)
     o1, o2, o3 = st.columns(3)
     with o1:
-        st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">ШАГ 1</div><div class="pyrus-card-value">📝 Анкета</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Перейдите в <b>Кабинет Гражданина</b> слева и подтвердите документы соискателя (Паспорт/Диплом). Шкала прогресса сама рассчитает готовность.</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">ШАГ 1</div><div class="pyrus-card-value">📝 Анкета</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Перейдите в <b>Кабинет Гражданина</b> в левом меню и подтвердите документы соискателя (Паспорт/Диплом). Шкала прогресса сама рассчитает готовность.</div></div>', unsafe_allow_html=True)
     with o2:
-        st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">ШАГ 2</div><div class="pyrus-card-value">🤖 Симулятор</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Откройте вкладку тренажёра и сдайте тест на знание аварийных регламентов ЧПУ Syntec. Спасите шпиндель от виртуального перегрева.</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">ШАГ 2</div><div class="pyrus-card-value">🤖 Симулятор</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Откройте вкладку тренажёра в Кабинете Гражданина и сдайте тест на знание аварийных регламентов ЧПУ Syntec. Спасите шпиндель от перегрева.</div></div>', unsafe_allow_html=True)
+    with o1:
+        st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">ШАГ 1</div><div class="pyrus-card-value">📝 Анкета</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Перейдите в <b>Кабинет Гражданина</b> в левом меню и подтвердите документы соискателя (Паспорт/Диплом). Шкала прогресса сама рассчитает готовность.</div></div>', unsafe_allow_html=True)
+    with o2:
+        st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">ШАГ 2</div><div class="pyrus-card-value">🤖 Симулятор</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Откройте вкладку тренажёра в Кабинете Гражданина и сдайте тест на знание аварийных регламентов ЧПУ Syntec. Спасите шпиндель от перегрева.</div></div>', unsafe_allow_html=True)
     with o3:
         st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">ШАГ 3</div><div class="pyrus-card-value">📜 Сертификат</div><div class="desc" style="margin-top:10px; color:#94A3B8;">После успешной сдачи нажмите кнопку ниже, чтобы верифицировать ID и скачать готовый Сертификат Допуска с печатью АПП.</div></div>', unsafe_allow_html=True)
         
     st.write("---")
     st.markdown("<h4 style='color:#FFFFFF; font-weight:700;'>⚙️ Доступные программы и стандарты топовых производств</h4>", unsafe_allow_html=True)
     
-    # Сетка производственных направлений
+    v1, v2, v3 = st.columns(3)
+    with v1:
+        st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">НАПРАВЛЕНИЕ ЧПУ</div><div class="pyrus-card-value">Syntec / Fanuc</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Стандарты токарно-фрезерной обработки, регламенты настройки стоек Syntec и Fanuc, калибровка осей и симуляция траекторий инструмента.</div></div>', unsafe_allow_html=True)
+    with v2:
+        st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">ИНДУСТРИЯ 4.0</div><div class="pyrus-card-value">Робототехника</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Регламенты обслуживания манипуляторов, low-code программирование циклов сборки и автоматизация b2b-конвейерных линий.</div></div>', unsafe_allow_html=True)
+    with v3:
+        st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">БЕЗОПАСНОСТЬ</div><div class="pyrus-card-value">Регламенты ТБ</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Критические инструкции эксплуатации шпинделей, защита дорогостоящих узлов от перегрева и действия соискателя в аварийных ситуациях.</div></div>', unsafe_allow_html=True)
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.form("certificate_download_form"):
+        st.markdown("<h4 style='color:#06B6D4; font-weight:700;'>📜 Выгрузка официального Сертификата Допуска</h4>", unsafe_allow_html=True)
     v1, v2, v3 = st.columns(3)
     with v1:
         st.markdown('<div class="pyrus-card"><div class="pyrus-card-title">НАПРАВЛЕНИЕ ЧПУ</div><div class="pyrus-card-value">Syntec / Fanuc</div><div class="desc" style="margin-top:10px; color:#94A3B8;">Стандарты токарно-фрезерной обработки, регламенты настройки стоек Syntec и Fanuc, калибровка осей и симуляция траекторий инструмента.</div></div>', unsafe_allow_html=True)
@@ -228,6 +242,11 @@ elif user_role == "🎓 Личный кабинет Гражданина РФ":
             c_fio = col1.text_input("ФИО специалиста полностью:", value="Иванов Игорь Игоревич")
             c_phone = col2.text_input("Номер телефона для связи:", value="+7(900)111-22-33")
             c_email = col3.text_input("Электронная почта (E-mail):", value="ivanov@spb.ru")
+            col1, col2, col3 = st.columns(3)
+            c_fio = col1.text_input("ФИО специалиста полностью:", value="Иванов Игорь Игоревич")
+            c_phone = col2.text_input("Номер телефона для связи:", value="+7(900)111-22-33")
+            c_email = col3.text_input("Электронная почта (E-mail):", value="ivanov@spb.ru")
+            
             col4, col5, col6 = st.columns(3)
             c_pass = col4.text_input("Паспорт РФ (Серия, Номер):", placeholder="Можно любые 10 цифр")
             c_diploma = col5.text_input("Диплом об образовании:", placeholder="Можно ввести любые данные")
@@ -238,7 +257,7 @@ elif user_role == "🎓 Личный кабинет Гражданина РФ":
                 "Наладчик станков и манипуляторов с ЧПУ (Фрезерная группа)", 
                 "Программирование CAD/CAM систем и симуляция обработки"
             ])
-            c_contract = st.selectbox("Статус юридического ученического договора с заводом:", ["Подписан", "Не не подписан", "Не подписан"])
+            c_contract = st.selectbox("Статус юридического ученического договора с заводом:", ["Подписан", "Не подписан"])
             c_gdpr = st.checkbox("Согласие на обработку персональных данных сотрудников", value=True)
             
             if st.form_submit_button("Зафиксировать Паспорт Навыков", type="primary"):
@@ -251,6 +270,11 @@ elif user_role == "🎓 Личный кабинет Гражданина РФ":
                     
                     st.session_state["citizens_data"].append({
                         "fio": c_fio.strip(), "phone": c_phone.strip(), "email": c_email.strip(), 
+                        "education": c_edu_place, "passport": c_pass.strip(), "diploma": c_diploma.strip(), 
+                        "workbook": c_work.strip(), "contract_status": c_contract, "progress": progress, "current_status": "Обучение"
+                    })
+                    st.toast("✓ Документы соискателя успешно зафиксированы!")
+                    st.rerun()
                         "education": c_edu_place, "passport": c_pass.strip(), "diploma": c_diploma.strip(), 
                         "workbook": c_work.strip(), "contract_status": c_contract, "progress": progress, "current_status": "Обучение"
                     })
@@ -282,57 +306,17 @@ elif user_role == "🎓 Личный кабинет Гражданина РФ":
                 "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха",
                 "Вручную снизить обороты шпинделя на 20% через потенциометр пульта"
             ], index=None)
-            
-            if st.form_submit_button("Отправить ответы на проверку экспертам", type="primary"):
-                if ans == "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха":
-                    if st.session_state["citizens_data"]:
-                        st.session_state["citizens_data"][-1]["current_status"] = "Сертифицированный специалист"
-                        st.session_state["citizens_data"][-1]["progress"] = 100
-                    st.balloons()
-                    st.success("🎯 ТЕСТИРОВАНИЕ ПРОЙДЕНО НА 100%! Прогресс на симуляторе выведен на 100%. Вам присвоен статус: СЕРТИФИЦИРОВАННЫЙ СПЕЦИАЛИСТ.")
-                else:
-                    st.error("❌ ОШИБКА В РЕГЛАМЕНТЕ! Произошла авария шпинделя. Допуск заблокирован. Повторите технику безопасности.")
-
-        with st.form("exam_form_mono"):
-            st.markdown("<h4 style='color:#06B6D4; font-weight:700;'>🤖 Шаг 2: Проверка знаний на симуляторе чрезвычайных ситуаций</h4>", unsafe_allow_html=True)
-            st.write("💡 **Подсказка для соискателя:** Представьте, что вы находитесь в цеху у реального промышленного станка. Дорогостоящее оборудование подало экстренный сигнал тревоги. Ваша задача — спасти узел от поломки, выбрав строго один верный и безопасный алгоритм действий.")
-            st.write("---")
-            
-            st.info("КЕЙС: На пульте управления дорогостоящего станка ЧПУ датчик стойки Syntec выдал критический перегрев шпинделя за 20 млн рублей. Каковы ваши экстренные действия в цеху?")
-            
             ans = st.radio("Выберите строго один правильный алгоритм действий:", [
                 "Игнорировать предупреждение автоматики и закончить фрезеровку детали",
                 "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха",
                 "Вручную снизить обороты шпинделя на 20% через потенциометр пульта"
             ], index=None)
             
-             if st.form_submit_button("Отправить ответы на проверку экспертам", type="primary"):
+            if st.form_submit_button("Отправить ответы на проверку экспертам", type="primary"):
                 if ans == "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха":
                     if st.session_state["citizens_data"]:
                         st.session_state["citizens_data"][-1]["current_status"] = "Сертифицированный специалист"
                         st.session_state["citizens_data"][-1]["progress"] = 100
-                    st.balloons()
-                    st.success("🎯 ТЕСТИРОВАНИЕ ПРОЙДЕНО НА 100%! Прогресс на симуляторе выведен на 100%. Вам присвоен статус: СЕРТИФИЦИРОВАННЫЙ СПЕЦИАЛИСТ.")
-                else:
-                    st.error("❌ ОШИБКА В РЕГЛАМЕНТЕ! Произошла авария шпинделя. Допуск заблокирован. Повторите технику безопасности.")
-
-                if ans == "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха":
-                    if st.session_state["citizens_data"]:
-                        st.session_state["citizens_data"][-1]["current_status"] = "Сертифицированный специалист"
-                        st.session_state["citizens_data"][-1]["progress"] = 100
-                    st.balloons()
-                    st.success("🎯 ТЕСТИРОВАНИЕ ПРОЙДЕНО НА 100%! Прогресс на симуляторе выведен на 100%. Вам присвоен статус: СЕРТИФИЦИРОВАННЫЙ СПЕЦИАЛИСТ.")
-                else:
-                    st.error("❌ ОШИБКА В РЕГЛАМЕНТЕ! Произошла авария шпинделя. Допуск заблокирован. Повторите технику безопасности.")
-
-                if ans == "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха":
-                    if st.session_state["citizens_data"]:
-                        st.session_state["citizens_data"][-1]["current_status"] = "Сертифицированный специалист"
-                        st.session_state["citizens_data"][-1]["progress"] = 100
-                    st.balloons()
-                    st.success("🎯 ТЕСТИРОВАНИЕ ПРОЙДЕНО НА 100%! Прогресс на симуляторе выведен на 100%. Вам присвоен статус: СЕРТИФИЦИРОВАННЫЙ СПЕЦИАЛИСТ.")
-                else:
-                    st.error("❌ ОШИБКА В РЕГЛАМЕНТЕ! Произошла авария шпинделя. Допуск заблокирован. Повторите технику безопасности.")
                     st.balloons()
                     st.success("🎯 ТЕСТИРОВАНИЕ ПРОЙДЕНО НА 100%! Прогресс на симуляторе выведен на 100%. Вам присвоен статус: СЕРТИФИЦИРОВАННЫЙ СПЕЦИАЛИСТ.")
                 else:
@@ -359,12 +343,14 @@ elif user_role == "🏢 Личный кабинет Производства":
                 st.session_state["payments_data"].append({"id": len(st.session_state["payments_data"])+1, "tariff": "Штучный курс", "amount": 19990.0, "timestamp": "Только что"})
                 st.success("✓ Транзакция штучного пакета успешно зафиксирована в системе!")
                 st.toast("✓ Баланс выгрузок пополнен!")
+                st.session_state["payments_data"].append({"id": len(st.session_state["payments_data"])+1, "tariff": "Штучный курс", "amount": 19990.0, "timestamp": "Только что"})
+                st.success("✓ Транзакция штучного пакета успешно зафиксирована в системе!")
+                st.toast("✓ Баланс выгрузок пополнен!")
         with col_t2:
             st.markdown('<div class="tariff-box popular"><h5>⚔️ Корпоративный Безлимит</h5><div class="price">150 000 ₽</div><div class="desc">Полное обучение и сертификация до 50 внутренних экспертов предприятия</div></div>', unsafe_allow_html=True)
             if st.button("Активировать Безлимит", key="b2_mono", use_container_width=True, type="primary"):
                 st.session_state["payments_data"].append({"id": len(st.session_state["payments_data"])+1, "tariff": "Corporate Unlimited", "amount": 150000.0, "timestamp": "Только что"})
                 st.success("✓ Годовая корпоративная лицензия успешно активирована!")
-                st.toast("✓ Безлимитный доступ открыт!")
                 st.toast("✓ Безлимитный доступ открыт!")
 
     with tab_dpo:
