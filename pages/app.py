@@ -99,4 +99,18 @@ with col_k3:
     st.markdown(f'<div class="glass-card"><div class="card-title">Общая сумма привлеченных оплат</div><div class="card-value" style="color:#F59E0B;">{total_rev:,.0f} ₽</div></div>', unsafe_allow_html=True)
 
 st.write("---")
-st.info("💡 Навигация готова! Используйте встроенное боковое меню страниц слева для перехода в кабинеты. Все данные синхронизируются автоматически.")
+
+# ==============================================================================
+# 4. СВЯЗУЮЩИЙ МОСТ С ПАПКОЙ PAGES (ИСПРАВЛЕННЫЕ ПУТИ ПОД ВАШИ НОВЫЕ ФАЙЛЫ)
+# ==============================================================================
+page_citizen = st.Page("pages/1__Гражданин_РФ.py", title="🎓 Личный кабинет Физического лица", icon="🎓", url_path="student")
+page_factory = st.Page("pages/2__Производство.py", title="🏢 Личный кабинет Производства", icon="🏢", url_path="factory")
+page_association = st.Page("pages/3__Ассоциация.py", title="🛠️ Кабинет Ассоциации (Управление)", icon="🛠️", url_path="association")
+
+# Объединяем страницы под общим киберпанк-заголовком Сайдбара
+pg = st.navigation({
+    "🔒 КОНТУР УПРАВЛЕНИЯ АПП": [page_citizen, page_factory, page_association]
+})
+
+# Запускаем выбранную в данный момент страницу
+pg.run()
