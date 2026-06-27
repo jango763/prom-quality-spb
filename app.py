@@ -83,6 +83,11 @@ if "payments_data" not in st.session_state:
 if "courses_data" not in st.session_state:
     st.session_state["courses_data"] = []
 
+# Конвертируем массивы сессии в DataFrame
+citizens_df = pd.DataFrame(st.session_state["citizens_data"])
+payments_df = pd.DataFrame(st.session_state["payments_data"])
+courses_df = pd.DataFrame(st.session_state["courses_data"])
+
 # ==============================================================================
 # 3. НАВИГАЦИОННЫЙ СЕЛЕКТОР РОЛЕЙ В САЙДБАРЕ (СТРОГО 2 КАБИНЕТА)
 # ==============================================================================
@@ -111,7 +116,7 @@ st.markdown("""
 # ==============================================================================
 if user_role == "🎓 Личный кабинет Гражданина РФ":
     st.markdown("<h3 style='color:#FFFFFF; font-weight:700;'>🎓 Портал обучения и Цифровой Паспорт Навыков</h3>", unsafe_allow_html=True)
-    tab_anketa, tab_exam = st.tabs(["📝 Профильная анкета и b2b-верификация", "🤖 Интерактивный мини-тренажер ЧПУ"])
+    tab_anketa, tab_exam = st.tabs(["📝 Профильная анкета и b2b-верификация", "🤖 Интерактивный mini-тренажер ЧПУ"])
     
     with tab_anketa:
         with st.form("student_form_mono", clear_on_submit=False):
@@ -164,5 +169,3 @@ if user_role == "🎓 Личный кабинет Гражданина РФ":
             st.markdown("<h4 style='color:#06B6D4; font-weight:700;'>🤖 Проверка знаний и финальное тестирование ТБ</h4>", unsafe_allow_html=True)
             st.info("КЕЙС: На пульте управления дорогостоящего станка ЧПУ датчик стойки Syntec выдал критический перегрев шпинделя за 20 млн рублей. Каковы ваши экстренные действия в цеху?")
             ans = st.radio("Выберите строго один правильный алгоритм действий:", [
-                "Игнорировать предупреждение автоматики и закончить фрезеровку детали",
-                "Немедленно активировать аварийную кнопку STOP, перекрыть подачу СОЖ и вызвать наставника цеха",
