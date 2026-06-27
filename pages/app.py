@@ -63,7 +63,7 @@ st.markdown("""
 # ==============================================================================
 if "citizens_data" not in st.session_state:
     st.session_state["citizens_data"] = [
-        {"fio": "Никифоров Артур Владимирович", "phone": "+7(921)555-44-33", "email": "artur@mail.ru", "education": "Высшее техническое", "passport": "4012 987654", "diploma": "№78-05", "workbook": "№ТК-12", "skills": "Фрезеровщик ЧПУ", "gdpr": 1, "contract_status": "Подписан", "progress": 100, "current_status": "Железный專员"}
+        {"fio": "Никифоров Артур Владимирович", "phone": "+7(921)555-44-33", "email": "artur@mail.ru", "education": "Высшее техническое", "passport": "4012 987654", "diploma": "№78-05", "workbook": "№ТК-12", "skills": "Фрезеровщик ЧПУ", "gdpr": 1, "contract_status": "Подписан", "progress": 100, "current_status": "Железный специалист"}
     ]
 
 if "payments_data" not in st.session_state:
@@ -75,7 +75,7 @@ if "courses_data" not in st.session_state:
     st.session_state["courses_data"] = []
 
 # ==============================================================================
-# 3. ВЫВОД КРАСИВОГО БАННЕРА И KPI ИЗ CODEPEN (ВЕРНУЛИ НА МЕСТО)
+# 3. ВЫВОД КРАСИВОГО БАННЕРА И KPI ИЗ CODEPEN
 # ==============================================================================
 st.markdown("""
     <div class="hero-banner">
@@ -87,7 +87,6 @@ st.markdown("""
 st.markdown("<h3 style='color:#10B981; font-weight:800;'>📊 Текущие KPI платформы в реальном времени</h3>", unsafe_allow_html=True)
 col_k1, col_k2, col_k3 = st.columns(3)
 
-# Безопасный расчет длины списков напрямую без создания ломающих DataFrame на старте
 total_courses = len(st.session_state["courses_data"])
 total_citizens = len(st.session_state["citizens_data"])
 total_rev = sum(p["amount"] for p in st.session_state["payments_data"])
@@ -100,18 +99,4 @@ with col_k3:
     st.markdown(f'<div class="glass-card"><div class="card-title">Общая сумма привлеченных оплат</div><div class="card-value" style="color:#F59E0B;">{total_rev:,.0f} ₽</div></div>', unsafe_allow_html=True)
 
 st.write("---")
-
-# ==============================================================================
-# 4. ОФИЦИАЛЬНОЕ НАПРАВЛЕНИЕ ПУТИ В ПАПКИ PAGES (С ЗАЩИТОЙ URL ОТ ПЕРЕВОДЧИКА)
-# ==============================================================================
-page_citizen = st.Page("pages/1_🎓_Гражданин_РФ.py", title="🎓 Личный кабинет Физического лица", icon="🎓", url_path="student")
-page_factory = st.Page("pages/2_🏢_Производство.py", title="🏢 Личный кабинет Производства", icon="🏢", url_path="factory")
-page_association = st.Page("pages/3_🛠️_Ассоциация.py", title="🛠️ Кабинет Ассоциации (Управление)", icon="🛠️", url_path="association")
-
-# Склеиваем страницы в единый Контур управления АПП
-pg = st.navigation({
-    "🔒 КОНТУР УПРАВЛЕНИЯ АПП": [page_citizen, page_factory, page_association]
-})
-
-# Передаем управление кодовой базе страниц папки pages
-pg.run()
+st.info("💡 Навигация готова! Используйте встроенное боковое меню страниц слева для перехода в кабинеты. Все данные синхронизируются автоматически.")
